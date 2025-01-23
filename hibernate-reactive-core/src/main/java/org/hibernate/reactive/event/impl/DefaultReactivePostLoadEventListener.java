@@ -5,6 +5,7 @@
  */
 package org.hibernate.reactive.event.impl;
 
+
 import org.hibernate.AssertionFailure;
 import org.hibernate.engine.spi.EntityEntry;
 import org.hibernate.event.spi.EventSource;

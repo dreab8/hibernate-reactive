@@ -13,19 +13,25 @@ import java.util.function.Consumer;
 import org.hibernate.HibernateException;
 import org.hibernate.collection.spi.PersistentCollection;
 import org.hibernate.engine.internal.StatefulPersistenceContext;
+import org.hibernate.engine.spi.EntityHolder;
 import org.hibernate.engine.spi.EntityKey;
 import org.hibernate.engine.spi.PersistenceContext;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
+import org.hibernate.event.service.spi.EventListenerGroup;
+import org.hibernate.event.spi.PostLoadEvent;
+import org.hibernate.event.spi.PostLoadEventListener;
 import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.reactive.logging.impl.Log;
 import org.hibernate.reactive.persister.entity.impl.ReactiveEntityPersister;
 import org.hibernate.reactive.session.ReactiveSession;
+import org.hibernate.sql.results.jdbc.spi.JdbcValuesSourceProcessingState;
 
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.hibernate.pretty.MessageHelper.infoString;
 import static org.hibernate.reactive.logging.impl.LoggerFactory.make;
 import static org.hibernate.reactive.util.impl.CompletionStages.completedFuture;
+import static org.hibernate.reactive.util.impl.CompletionStages.loop;
 import static org.hibernate.reactive.util.impl.CompletionStages.voidFuture;
 
 /**
@@ -130,5 +136,84 @@ public class ReactivePersistenceContextAdapter extends StatefulPersistenceContex
 			entitySnapshotsByKey.remove(key);
 		}
 		return result;
+	}
+
+	@Override
+	public void postLoad(JdbcValuesSourceProcessingState processingState, Consumer<EntityHolder> holderConsumer) {
+		throw LOG.nonReactiveMethodCall( "reactivePostLoad(JdbcValuesSourceProcessingState, Consumer<EntityHolder>) )" );
+	}
+
+	public CompletionStage<Void> reactivePostLoad(JdbcValuesSourceProcessingState processingState, Consumer<EntityHolder> holderConsumer) {
+		final ReactiveCallbackImpl callback = (ReactiveCallbackImpl) processingState.getExecutionContext().getCallback();
+
+		if ( processingState.getLoadingEntityHolders() != null ) {
+			final EventListenerGroup<PostLoadEventListener> listenerGroup =
+					getSession().getFactory().getEventListenerGroups().eventListenerGroup_POST_LOAD;
+			final PostLoadEvent postLoadEvent = processingState.getPostLoadEvent();
+			return loop(
+					processingState.getLoadingEntityHolders(), entityHolder ->
+							processLoadedEntityHolder(
+									entityHolder,
+									listenerGroup,
+									postLoadEvent,
+									callback,
+									holderConsumer
+							)
+			).thenAccept( unused -> processingState.getLoadingEntityHolders().clear() );
+		}
+		if ( processingState.getReloadedEntityHolders() != null ) {
+			return loop(
+					processingState.getLoadingEntityHolders(), entityHolder ->
+							processLoadedEntityHolder(
+									entityHolder,
+									null,
+									null,
+									callback,
+									holderConsumer
+							)
+			).thenAccept( unused -> processingState.getLoadingEntityHolders().clear() );
+		}
+		return voidFuture();
+	}
+
+	private CompletionStage<Void> processLoadedEntityHolder(
+			EntityHolder holder,
+			EventListenerGroup<PostLoadEventListener> listenerGroup,
+			PostLoadEvent postLoadEvent,
+			ReactiveCallbackImpl callback,
+			Consumer<EntityHolder> holderConsumer) {
+		if ( holderConsumer != null ) {
+			holderConsumer.accept( holder );
+		}
+		if ( holder.getEntity() == null ) {
+			// It's possible that we tried to load an entity and found out it doesn't exist,
+			// in which case we added an entry with a null proxy and entity.
+			// Remove that empty entry on post load to avoid unwanted side effects
+			getEntitiesByKey().remove( holder.getEntityKey() );
+		}
+		else {
+			if ( postLoadEvent != null ) {
+				postLoadEvent.reset();
+				postLoadEvent.setEntity( holder.getEntity() )
+						.setId( holder.getEntityKey().getIdentifier() )
+						.setPersister( holder.getDescriptor() );
+				listenerGroup.fireEventOnEachListener(
+								postLoadEvent,
+								PostLoadEventListener::onPostLoad
+						);
+				if ( callback != null ) {
+					return callback.invokeReactiveLoadActions(
+							holder.getEntity(),
+							holder.getDescriptor(),
+							getSession()
+					).thenApply( v -> {
+						holder.resetEntityInitialier();
+						return v;
+					} );
+				}
+			}
+
+		}
+		return voidFuture();
 	}
 }

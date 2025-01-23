@@ -13,18 +13,25 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
 import org.hibernate.HibernateException;
+import org.hibernate.LockOptions;
+import org.hibernate.dialect.Dialect;
 import org.hibernate.engine.jdbc.spi.SqlStatementLogger;
 import org.hibernate.engine.spi.SessionEventListenerManager;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.query.spi.QueryOptions;
 import org.hibernate.reactive.adaptor.impl.PreparedStatementAdaptor;
+import org.hibernate.reactive.engine.impl.ReactiveCallbackImpl;
 import org.hibernate.reactive.logging.impl.Log;
 import org.hibernate.reactive.logging.impl.LoggerFactory;
 import org.hibernate.reactive.pool.ReactiveConnection;
 import org.hibernate.reactive.session.ReactiveConnectionSupplier;
+import org.hibernate.reactive.session.ReactiveSession;
 import org.hibernate.reactive.util.impl.CompletionStages;
 import org.hibernate.resource.jdbc.spi.JdbcSessionContext;
 import org.hibernate.resource.jdbc.spi.LogicalConnectionImplementor;
+import org.hibernate.sql.exec.spi.Callback;
 import org.hibernate.sql.exec.spi.ExecutionContext;
+import org.hibernate.sql.exec.spi.JdbcLockStrategy;
 import org.hibernate.sql.exec.spi.JdbcOperationQuerySelect;
 import org.hibernate.sql.exec.spi.JdbcParameterBindings;
 import org.hibernate.sql.exec.spi.JdbcSelectExecutor;
@@ -59,6 +66,48 @@ public class ReactiveDeferredResultSetAccess extends DeferredResultSetAccess imp
 		this.executionContext = executionContext;
 		this.sqlStatementLogger = executionContext.getSession().getJdbcServices().getSqlStatementLogger();
 	}
+
+	@Override
+	protected void registerAfterLoadAction(ExecutionContext executionContext, LockOptions lockOptionsToUse) {
+		Callback callback = executionContext.getCallback();
+		final ReactiveCallbackImpl reactiveCallback;
+		if ( callback instanceof ReactiveCallbackImpl ) {
+			reactiveCallback = (ReactiveCallbackImpl) callback;
+		}
+		else {
+			assert !callback.hasAfterLoadActions();
+			reactiveCallback = new ReactiveCallbackImpl();
+		}
+		reactiveCallback.registerReactiveAfterLoadAction(
+				(entity, persister, session) ->
+						((ReactiveSession)session).reactiveLock(
+								persister.getEntityName(),
+								entity,
+								lockOptionsToUse
+						)
+		);
+	}
+
+
+
+	private static boolean useFollowOnLocking(
+			JdbcLockStrategy jdbcLockStrategy,
+			String sql,
+			QueryOptions queryOptions,
+			LockOptions lockOptions,
+			Dialect dialect) {
+		switch ( jdbcLockStrategy ) {
+			case FOLLOW_ON:
+				return true;
+			case AUTO:
+				return lockOptions.getFollowOnLocking() == null
+						? dialect.useFollowOnLocking( sql, queryOptions )
+						: lockOptions.getFollowOnLocking();
+			default:
+				return false;
+		}
+	}
+
 
 	@Override
 	public ResultSet getResultSet() {
@@ -227,7 +276,8 @@ public class ReactiveDeferredResultSetAccess extends DeferredResultSetAccess imp
 				return failedFuture( cause );
 			}
 			// SQL server throws an exception as soon as we run the query
-			if ( cause instanceof UnsupportedOperationException && cause.getMessage().contains( "Unable to decode typeInfo for XML" ) ) {
+			if ( cause instanceof UnsupportedOperationException && cause.getMessage().contains(
+					"Unable to decode typeInfo for XML" ) ) {
 				return failedFuture( LOG.unsupportedXmlType() );
 			}
 			return failedFuture( new HibernateException( cause ) );

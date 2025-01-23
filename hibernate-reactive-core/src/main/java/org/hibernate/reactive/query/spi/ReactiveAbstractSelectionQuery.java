@@ -30,12 +30,14 @@ import org.hibernate.query.sqm.internal.SqmInterpretationsKey;
 import org.hibernate.query.sqm.internal.SqmInterpretationsKey.InterpretationsKeySource;
 import org.hibernate.query.sqm.tree.SqmStatement;
 import org.hibernate.query.sqm.tree.select.SqmSelectStatement;
+import org.hibernate.reactive.engine.impl.ReactiveCallbackImpl;
 import org.hibernate.reactive.logging.impl.Log;
 import org.hibernate.reactive.logging.impl.LoggerFactory;
 import org.hibernate.reactive.query.sqm.internal.AggregatedSelectReactiveQueryPlan;
 import org.hibernate.reactive.query.sqm.internal.ConcreteSqmSelectReactiveQueryPlan;
 import org.hibernate.reactive.query.sqm.spi.ReactiveSelectQueryPlan;
 import org.hibernate.reactive.sql.results.spi.ReactiveSingleResultConsumer;
+import org.hibernate.sql.exec.spi.Callback;
 import org.hibernate.sql.results.internal.TupleMetadata;
 
 import jakarta.persistence.NoResultException;
@@ -75,6 +77,8 @@ public class ReactiveAbstractSelectionQuery<R> {
 	private final Consumer<Boolean> afterQuery;
 	private final Function<List<R>, R> uniqueElement;
 	private final InterpretationsKeySource interpretationsKeySource;
+
+	private Callback callback;
 
 	// I'm sure we can avoid some of this by making some methods public in ORM,
 	// but this allows me to prototype faster. We can refactor the code later.
@@ -362,5 +366,12 @@ public class ReactiveAbstractSelectionQuery<R> {
 			fetchProfiles = new HashSet<>();
 		}
 		fetchProfiles.add( profileName );
+	}
+
+	public Callback getCallback() {
+		if ( callback == null ) {
+			callback = new ReactiveCallbackImpl();
+		}
+		return callback;
 	}
 }

@@ -9,6 +9,7 @@ import java.util.concurrent.CompletionStage;
 
 import org.hibernate.Incubating;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
+import org.hibernate.reactive.engine.impl.ReactivePersistenceContextAdapter;
 import org.hibernate.reactive.sql.exec.spi.ReactiveRowProcessingState;
 import org.hibernate.reactive.sql.exec.spi.ReactiveValuesResultSet;
 import org.hibernate.sql.results.jdbc.internal.JdbcValuesSourceProcessingStateStandardImpl;
@@ -29,11 +30,15 @@ public class ReactiveSingleResultConsumer<T> implements ReactiveResultsConsumer<
 		return rowProcessingState.next()
 				.thenCompose( hasNext -> rowReader
 						.reactiveReadRow( rowProcessingState, processingOptions )
-						.thenApply( result -> {
+						.thenCompose( result -> {
 							rowProcessingState.finishRowProcessing( true );
 							rowReader.finishUp( rowProcessingState );
-							jdbcValuesSourceProcessingState.finishUp( false );
-							return result;
+							session.getPersistenceContext();
+							jdbcValuesSourceProcessingState.finishLoadingCollections();
+							return ( (ReactivePersistenceContextAdapter) session.getPersistenceContextInternal() )
+									.reactivePostLoad(
+											jdbcValuesSourceProcessingState,
+													null).thenApply( unused -> result );
 						} )
 				);
 	}
