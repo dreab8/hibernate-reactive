@@ -1,3 +1,7 @@
+plugins {
+    id 'org.checkerframework' version '0.6.40'
+}
+
 ext {
 	mavenPomName = 'Hibernate Reactive Core'
 }
