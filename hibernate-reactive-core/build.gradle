@@ -61,7 +61,7 @@ dependencies {
     testRuntimeOnly "com.ibm.db2:jcc:12.1.0.0"
 
     // EHCache
-    testRuntimeOnly ("org.ehcache:ehcache:3.10.8") {
+    testRuntimeOnly ("org.ehcache:ehcache:3.10.7") {
             capabilities {
                 requireCapability 'org.ehcache.modules:ehcache-xml-jakarta'
             }
