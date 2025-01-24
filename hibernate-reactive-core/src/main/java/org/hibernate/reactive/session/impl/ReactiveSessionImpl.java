@@ -28,7 +28,6 @@ import org.hibernate.UnresolvableObjectException;
 import org.hibernate.bytecode.enhance.spi.interceptor.EnhancementAsProxyLazinessInterceptor;
 import org.hibernate.collection.spi.PersistentCollection;
 import org.hibernate.dialect.Dialect;
-import org.hibernate.engine.internal.StatefulPersistenceContext;
 import org.hibernate.engine.spi.EffectiveEntityGraph;
 import org.hibernate.engine.spi.EntityEntry;
 import org.hibernate.engine.spi.EntityKey;
@@ -189,7 +188,7 @@ public class ReactiveSessionImpl extends SessionImpl implements ReactiveSession,
 	}
 
 	@Override
-	protected StatefulPersistenceContext createPersistenceContext() {
+	protected PersistenceContext createPersistenceContext() {
 		return new ReactivePersistenceContextAdapter( this );
 	}
 
@@ -1700,14 +1699,14 @@ public class ReactiveSessionImpl extends SessionImpl implements ReactiveSession,
 
 	@Override
 	public void removeOrphanBeforeUpdates(String entityName, Object child) {
-		throw new UnsupportedOperationException();
+		throw LOG.nonReactiveMethodCall( "reactiveRemoveOrphanBeforeUpdates" );
 	}
 
 	@Override
 	public CompletionStage<Void> reactiveRemoveOrphanBeforeUpdates(String entityName, Object child) {
 		// TODO: The removeOrphan concept is a temporary "hack" for HHH-6484.  This should be removed once action/task
 		// ordering is improved.
-		final StatefulPersistenceContext persistenceContext = (StatefulPersistenceContext) getPersistenceContextInternal();
+		final PersistenceContext persistenceContext = getPersistenceContextInternal();
 		persistenceContext.beginRemoveOrphanBeforeUpdates();
 		return fireRemove( new DeleteEvent( entityName, child, false, true, this ) )
 				.thenAccept( v -> {
@@ -1728,7 +1727,7 @@ public class ReactiveSessionImpl extends SessionImpl implements ReactiveSession,
 			String timing,
 			String entityName,
 			Object entity,
-			StatefulPersistenceContext persistenceContext) {
+			PersistenceContext persistenceContext) {
 		if ( LOG.isTraceEnabled() ) {
 			final EntityEntry entityEntry = persistenceContext.getEntry( entity );
 			LOG.tracef(
