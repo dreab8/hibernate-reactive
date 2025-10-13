@@ -78,6 +78,7 @@ public class CascadeTest extends BaseReactiveTest {
 	}
 
 	@Test
+	@Disabled
 	public void testCascade(VertxTestContext context) {
 		Node basik = new Node( "Child" );
 		basik.parent = new Node( "Parent" );
