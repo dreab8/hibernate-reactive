@@ -74,14 +74,15 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 	}
 
 	private void testField(VertxTestContext context, Basic original, Consumer<Basic> consumer) {
-		test( context, getSessionFactory()
-				.withTransaction( (s, t) -> s.persist( original ) )
-				.thenCompose( v -> getSessionFactory().withSession( s -> s
-						.find( Basic.class, original.id )
-						.thenAccept( found -> {
-							assertThat( found ).isNotNull();
-							consumer.accept( found );
-						} ) ) )
+		test(
+				context, getSessionFactory()
+						.withTransaction( (s, t) -> s.persist( original ) )
+						.thenCompose( v -> getSessionFactory().withSession( s -> s
+								.find( Basic.class, original.id )
+								.thenAccept( found -> {
+									assertThat( found ).isNotNull();
+									consumer.accept( found );
+								} ) ) )
 		);
 	}
 
@@ -100,10 +101,12 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		basic.primitiveInt = Integer.MIN_VALUE;
 		basic.fieldInteger = Integer.MAX_VALUE;
 
-		testField( context, basic, found -> {
-			assertThat( found.primitiveInt ).isEqualTo( Integer.MIN_VALUE );
-			assertThat( found.fieldInteger ).isEqualTo( Integer.MAX_VALUE );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.primitiveInt ).isEqualTo( Integer.MIN_VALUE );
+					assertThat( found.fieldInteger ).isEqualTo( Integer.MAX_VALUE );
+				}
+		);
 	}
 
 	@Test
@@ -112,10 +115,12 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		basic.primitiveLong = Long.MIN_VALUE;
 		basic.fieldLong = Long.MAX_VALUE;
 
-		testField( context, basic, found -> {
-			assertThat( found.primitiveLong ).isEqualTo( Long.MIN_VALUE );
-			assertThat( found.fieldLong ).isEqualTo( Long.MAX_VALUE );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.primitiveLong ).isEqualTo( Long.MIN_VALUE );
+					assertThat( found.fieldLong ).isEqualTo( Long.MAX_VALUE );
+				}
+		);
 	}
 
 	@Test
@@ -127,10 +132,12 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		basic.primitiveFloat = 10.02f;
 		basic.fieldFloat = 12.562f;
 
-		testField( context, basic, found -> {
-			assertThat( found.primitiveFloat ).isEqualTo( primitiveFloat );
-			assertThat( found.fieldFloat ).isEqualTo( fieldFloat );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.primitiveFloat ).isEqualTo( primitiveFloat );
+					assertThat( found.fieldFloat ).isEqualTo( fieldFloat );
+				}
+		);
 	}
 
 	@Test
@@ -142,10 +149,12 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		basic.primitiveDouble = primitiveDouble;
 		basic.fieldDouble = fieldDouble;
 
-		testField( context, basic, found -> {
-			assertThat( found.primitiveDouble ).isEqualTo( primitiveDouble );
-			assertThat( found.fieldDouble ).isEqualTo( fieldDouble );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.primitiveDouble ).isEqualTo( primitiveDouble );
+					assertThat( found.fieldDouble ).isEqualTo( fieldDouble );
+				}
+		);
 	}
 
 	@Test
@@ -157,13 +166,15 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		basic.booleanYesNo = Boolean.FALSE;
 		basic.booleanNumeric = Boolean.FALSE;
 
-		testField( context, basic, found -> {
-			assertThat( found.primitiveBoolean ).isEqualTo( true );
-			assertThat( found.fieldBoolean ).isEqualTo( Boolean.FALSE );
-			assertThat( found.booleanTrueFalse ).isEqualTo( Boolean.FALSE );
-			assertThat( found.booleanYesNo ).isEqualTo( Boolean.FALSE );
-			assertThat( found.booleanNumeric ).isEqualTo( Boolean.FALSE );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.primitiveBoolean ).isEqualTo( true );
+					assertThat( found.fieldBoolean ).isEqualTo( Boolean.FALSE );
+					assertThat( found.booleanTrueFalse ).isEqualTo( Boolean.FALSE );
+					assertThat( found.booleanYesNo ).isEqualTo( Boolean.FALSE );
+					assertThat( found.booleanNumeric ).isEqualTo( Boolean.FALSE );
+				}
+		);
 	}
 
 	@Test
@@ -177,11 +188,13 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		basic.primitiveBytes = primitiveBytes;
 		basic.fieldByte = fieldByte;
 
-		testField( context, basic, found -> {
-			assertThat( found.primitiveByte ).isEqualTo( primitiveByte );
-			assertThat( Objects.deepEquals( primitiveBytes, found.primitiveBytes ) ).isTrue();
-			assertThat( found.fieldByte ).isEqualTo( fieldByte );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.primitiveByte ).isEqualTo( primitiveByte );
+					assertThat( Objects.deepEquals( primitiveBytes, found.primitiveBytes ) ).isTrue();
+					assertThat( found.fieldByte ).isEqualTo( fieldByte );
+				}
+		);
 	}
 
 	@Test
@@ -208,10 +221,12 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.dateAsTimestamp = date;
 
-		testField( context, basic, found -> {
-			assertThat( found.dateAsTimestamp ).isInstanceOf( Timestamp.class );
-			assertThat( found.dateAsTimestamp ).isEqualTo( new Timestamp( date.getTime() ) );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.dateAsTimestamp ).isInstanceOf( Timestamp.class );
+					assertThat( found.dateAsTimestamp ).isEqualTo( new Timestamp( date.getTime() ) );
+				}
+		);
 	}
 
 	@Test
@@ -226,9 +241,9 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 	@Test
 	public void testCalendarAsDateType(VertxTestContext context) {
 		Calendar calendar = GregorianCalendar.getInstance();
-		calendar.set( Calendar.DAY_OF_MONTH,  15);
-		calendar.set( Calendar.MONTH,  7);
-		calendar.set( Calendar.YEAR,  2002);
+		calendar.set( Calendar.DAY_OF_MONTH, 15 );
+		calendar.set( Calendar.MONTH, 7 );
+		calendar.set( Calendar.YEAR, 2002 );
 
 		// TemporalType#Date only deals with year/month/day
 		int expectedYear = calendar.get( Calendar.YEAR );
@@ -238,11 +253,13 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.calendarAsDate = calendar;
 
-		testField( context, basic, found -> {
-			assertThat( found.calendarAsDate.get( Calendar.DAY_OF_MONTH ) ).isEqualTo( expectedDay );
-			assertThat( found.calendarAsDate.get( Calendar.MONTH ) ).isEqualTo( expectedMonth );
-			assertThat( found.calendarAsDate.get( Calendar.YEAR ) ).isEqualTo( expectedYear );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.calendarAsDate.get( Calendar.DAY_OF_MONTH ) ).isEqualTo( expectedDay );
+					assertThat( found.calendarAsDate.get( Calendar.MONTH ) ).isEqualTo( expectedMonth );
+					assertThat( found.calendarAsDate.get( Calendar.YEAR ) ).isEqualTo( expectedYear );
+				}
+		);
 	}
 
 	@Test
@@ -255,10 +272,12 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.calendarAsTimestamp = calendar;
 
-		testField( context, basic, found -> {
-			String actual = format( found.calendarAsTimestamp );
-			assertThat( actual ).isEqualTo( expected );
-		} );
+		testField(
+				context, basic, found -> {
+					String actual = format( found.calendarAsTimestamp );
+					assertThat( actual ).isEqualTo( expected );
+				}
+		);
 	}
 
 	private static String format(Calendar calendar) {
@@ -294,11 +313,13 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		basic.coverAsOrdinal = Cover.HARD;
 		basic.coverAsString = Cover.SOFT;
 
-		testField( context, basic, found -> {
-			assertThat( found.cover ).isEqualTo( Cover.HARDER );
-			assertThat( found.coverAsOrdinal ).isEqualTo( Cover.HARD );
-			assertThat( found.coverAsString ).isEqualTo( Cover.SOFT );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.cover ).isEqualTo( Cover.HARDER );
+					assertThat( found.coverAsOrdinal ).isEqualTo( Cover.HARD );
+					assertThat( found.coverAsString ).isEqualTo( Cover.SOFT );
+				}
+		);
 	}
 
 	@Test
@@ -307,9 +328,11 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.embed = embed;
 
-		testField( context, basic, found -> {
-			assertThat( found.embed ).isEqualTo( embed );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.embed ).isEqualTo( embed );
+				}
+		);
 	}
 
 	@Test
@@ -317,9 +340,11 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.bigIntegerAsString = BigInteger.TEN;
 
-		testField( context, basic, found -> {
-			assertThat( found.bigIntegerAsString.floatValue() ).isEqualTo( BigInteger.TEN.floatValue() );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.bigIntegerAsString.floatValue() ).isEqualTo( BigInteger.TEN.floatValue() );
+				}
+		);
 	}
 
 	@Test
@@ -327,9 +352,11 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.bigDecimalAsString = BigDecimal.TEN;
 
-		testField( context, basic, found -> {
-			assertThat( found.bigDecimalAsString.floatValue() ).isEqualTo( BigInteger.TEN.floatValue() );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.bigDecimalAsString.floatValue() ).isEqualTo( BigInteger.TEN.floatValue() );
+				}
+		);
 	}
 
 	@Test
@@ -339,10 +366,12 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.thing = thing;
 
-		testField( context, basic, found -> {
-			assertThat( found.thing instanceof String[] ).isTrue();
-			assertThat( Objects.deepEquals( thing, found.thing ) ).isTrue();
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.thing instanceof String[] ).isTrue();
+					assertThat( Objects.deepEquals( thing, found.thing ) ).isTrue();
+				}
+		);
 	}
 
 	@Test
@@ -358,13 +387,17 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.bigDecimal = new BigDecimal( "12.12" );
 
-		testField( context, basic, found -> assertThat( found.bigDecimal.floatValue() ).isEqualTo( basic.bigDecimal.floatValue() ) );
+		testField(
+				context,
+				basic,
+				found -> assertThat( found.bigDecimal.floatValue() ).isEqualTo( basic.bigDecimal.floatValue() )
+		);
 	}
 
 	@Test
 	public void testBigIntegerType(VertxTestContext context) {
 		Basic basic = new Basic();
-		basic.bigInteger = BigInteger.valueOf( 123L);
+		basic.bigInteger = BigInteger.valueOf( 123L );
 
 		testField( context, basic, found -> assertThat( found.bigInteger ).isEqualTo( basic.bigInteger ) );
 	}
@@ -374,9 +407,9 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.localTime = LocalTime.now();
 
-		testField( context, basic, found -> assertThat(
-				found.localTime.truncatedTo( ChronoUnit.MINUTES )
-				).isEqualTo( basic.localTime.truncatedTo( ChronoUnit.MINUTES ) ) );
+		testField( context, basic, found -> assertThat( found.localTime.truncatedTo( ChronoUnit.MINUTES ) )
+				.isEqualTo( basic.localTime.truncatedTo( ChronoUnit.MINUTES ) )
+		);
 	}
 
 	@Test
@@ -386,11 +419,13 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.dateAsTime = date;
 
-		testField( context, basic, found -> {
-			SimpleDateFormat timeSdf = new SimpleDateFormat( "HH:mm:ss" );
-			assertThat( found.dateAsTime instanceof Time ).isTrue();
-			assertThat( timeSdf.format( found.dateAsTime ) ).isEqualTo( timeSdf.format( date ) );
-		} );
+		testField(
+				context, basic, found -> {
+					SimpleDateFormat timeSdf = new SimpleDateFormat( "HH:mm:ss" );
+					assertThat( found.dateAsTime instanceof Time ).isTrue();
+					assertThat( timeSdf.format( found.dateAsTime ) ).isEqualTo( timeSdf.format( date ) );
+				}
+		);
 	}
 
 	@Test
@@ -398,10 +433,12 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.duration = Duration.ofMillis( 1894657L );
 
-		testField( context, basic, found -> {
-			assertThat( found.duration ).isNotNull();
-			assertThat( found.duration ).isEqualTo( basic.duration );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.duration ).isNotNull();
+					assertThat( found.duration ).isEqualTo( basic.duration );
+				}
+		);
 	}
 
 	@Test
@@ -410,10 +447,12 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		Basic basic = new Basic();
 		basic.instant = Instant.now();
 
-		testField( context, basic, found -> {
-			assertThat( found.instant ).isNotNull();
-			assertWithTruncationThat( found.instant ).isEqualTo( basic.instant );
-		} );
+		testField(
+				context, basic, found -> {
+					assertThat( found.instant ).isNotNull();
+					assertWithTruncationThat( found.instant ).isEqualTo( basic.instant );
+				}
+		);
 	}
 
 	@Test
@@ -424,54 +463,54 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 		basik.parent = parent;
 
 		test(
-				context,
-				openSession()
-						.thenCompose( s -> s.persist( basik.parent ).thenCompose( v -> s.persist( basik ) )
+				context, getSessionFactory()
+						.withSession( s -> s.persist( basik.parent ).thenCompose( v -> s.persist( basik ) )
 								.thenAccept( v -> assertThat( basik.prePersisted && !basik.postPersisted ).isTrue() )
 								.thenAccept( v -> assertThat( basik.parent.prePersisted && !basik.parent.postPersisted ).isTrue() )
 								.thenCompose( v -> s.flush() )
 								.thenAccept( v -> assertThat( basik.prePersisted && basik.postPersisted ).isTrue() )
 								.thenAccept( v -> assertThat( basik.parent.prePersisted && basik.parent.postPersisted ).isTrue() )
 						)
-						.thenCompose( v -> openSession()
-								.thenCompose( s2 -> s2.find( Basic.class, basik.getId() )
-										.thenCompose( basic -> {
-											assertThat( basic ).isNotNull();
-											assertThat( basic.loaded ).isTrue();
-											assertThat( basic.string ).isEqualTo( basik.string );
-											assertThat( basic.cover ).isEqualTo( basik.cover );
-											assertThat( basic.version ).isEqualTo( 0 );
+						.thenCompose( v -> getSessionFactory().withSession( s2 -> s2
+								.find( Basic.class, basik.getId() )
+								.thenCompose( basic -> {
+									assertThat( basic ).isNotNull();
+									assertThat( basic.loaded ).isTrue();
+									assertThat( basic.string ).isEqualTo( basik.string );
+									assertThat( basic.cover ).isEqualTo( basik.cover );
+									assertThat( basic.version ).isEqualTo( 0 );
 
-											basic.string = "Goodbye";
-											basic.cover = Cover.SOFT;
-											basic.parent = new Basic( "New Parent" );
-											return s2.persist( basic.parent )
-													.thenCompose( vv -> s2.flush() )
-													.thenAccept( vv -> {
-														assertThat( basic ).isNotNull();
-														assertThat( basic.postUpdated && basic.preUpdated ).isTrue();
-														assertThat( basic.postPersisted && basic.prePersisted ).isFalse();
-														assertThat( basic.parent.postPersisted && basic.parent.prePersisted ).isTrue();
-														assertThat( basic.version ).isEqualTo( 1 );
-													} );
-										} )
-								) )
-						.thenCompose( v -> openSession()
-								.thenCompose( s3 -> s3.find( Basic.class, basik.getId() )
-										.thenCompose( basic -> {
-											assertThat( basic.postUpdated && basic.preUpdated ).isFalse();
-											assertThat( basic.postPersisted && basic.prePersisted ).isFalse();
-											assertThat( basic.version ).isEqualTo( 1 );
-											assertThat( basic.string ).isEqualTo( "Goodbye" );
-											return s3.remove( basic )
-													.thenAccept( vv -> assertThat( !basic.postRemoved && basic.preRemoved ).isTrue() )
-													.thenCompose( vv -> s3.flush() )
-													.thenAccept( vv -> assertThat( basic.postRemoved && basic.preRemoved ).isTrue() );
-										} )
-								) )
-						.thenCompose( v -> openSession()
-								.thenCompose( s4 -> s4.find( Basic.class, basik.getId() ) )
-								.thenAccept( result -> assertThat( result ).isNull() ) )
+									basic.string = "Goodbye";
+									basic.cover = Cover.SOFT;
+									basic.parent = new Basic( "New Parent" );
+									return s2.persist( basic.parent )
+											.thenCompose( vv -> s2.flush() )
+											.thenAccept( vv -> {
+												assertThat( basic ).isNotNull();
+												assertThat( basic.postUpdated && basic.preUpdated ).isTrue();
+												assertThat( basic.postPersisted && basic.prePersisted ).isFalse();
+												assertThat( basic.parent.postPersisted && basic.parent.prePersisted ).isTrue();
+												assertThat( basic.version ).isEqualTo( 1 );
+											} );
+								} )
+						) )
+						.thenCompose( v -> getSessionFactory().withSession( s3 -> s3
+								.find( Basic.class, basik.getId() )
+								.thenCompose( basic -> {
+									assertThat( basic.postUpdated && basic.preUpdated ).isFalse();
+									assertThat( basic.postPersisted && basic.prePersisted ).isFalse();
+									assertThat( basic.version ).isEqualTo( 1 );
+									assertThat( basic.string ).isEqualTo( "Goodbye" );
+									return s3.remove( basic )
+											.thenAccept( vv -> assertThat( !basic.postRemoved && basic.preRemoved ).isTrue() )
+											.thenCompose( vv -> s3.flush() )
+											.thenAccept( vv -> assertThat( basic.postRemoved && basic.preRemoved ).isTrue() );
+								} )
+						) )
+						.thenCompose( v -> getSessionFactory().withSession( s4 -> s4
+								.find( Basic.class, basik.getId() )
+								.thenAccept( result -> assertThat( result ).isNull() )
+						) )
 		);
 	}
 
@@ -602,12 +641,12 @@ public class BasicTypesAndCallbacksForAllDBsTest extends BaseReactiveTest {
 
 		UUID uuid;
 
-		@Column(name="dessimal")
+		@Column(name = "dessimal")
 		BigDecimal bigDecimal;
-		@Column(name="inteja")
+		@Column(name = "inteja")
 		BigInteger bigInteger;
 
-		@Column(name="localtyme")
+		@Column(name = "localtyme")
 		private LocalTime localTime;
 		@Temporal(TemporalType.TIME)
 		Date dateAsTime;

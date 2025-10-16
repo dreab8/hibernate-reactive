@@ -84,8 +84,8 @@ public class BatchFetchTest extends BaseReactiveTest {
 									} );
 						} )
 				) )
-				.thenCompose( v -> openSession() )
-				.thenCompose( s -> s.createSelectionQuery( "from Element e order by id", Element.class )
+				.thenCompose( v -> getSessionFactory().withTransaction( s -> s
+						.createSelectionQuery( "from Element e order by id", Element.class )
 						.getResultList()
 						.thenCompose( list -> {
 							assertThat( list ).hasSize( 5 );
@@ -100,7 +100,7 @@ public class BatchFetchTest extends BaseReactiveTest {
 										list.forEach( element -> assertThat( s.getLockMode( element.node ) ).isEqualTo( LockMode.READ ) );
 									} );
 						} )
-				)
+				) )
 		);
 	}
 

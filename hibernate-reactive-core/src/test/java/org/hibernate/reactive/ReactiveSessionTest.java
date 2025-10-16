@@ -62,8 +62,8 @@ public class ReactiveSessionTest extends BaseReactiveTest {
 		test(
 				context,
 				populateDB()
-						.thenCompose( v -> getSessionFactory().withTransaction( session -> session
-								.find( GuineaPig.class, expectedPig.getId() )
+						.thenCompose( v -> openSession() )
+						.thenCompose( session -> session.find( GuineaPig.class, expectedPig.getId() )
 								.thenAccept( actualPig -> {
 									assertThatPigsAreEqual( expectedPig, actualPig );
 									assertTrue( session.contains( actualPig ) );
@@ -72,7 +72,7 @@ public class ReactiveSessionTest extends BaseReactiveTest {
 									session.detach( actualPig );
 									assertFalse( session.contains( actualPig ) );
 								} )
-						) )
+						)
 		);
 	}
 
@@ -338,31 +338,22 @@ public class ReactiveSessionTest extends BaseReactiveTest {
 	}
 
 	@Test
-	@Disabled
 	public void reactiveFindWithOptimisticIncrementLock(VertxTestContext context) {
 		final GuineaPig expectedPig = new GuineaPig( 5, "Aloi" );
-		test(
-				context,
-				populateDB()
-						.thenCompose( v -> getSessionFactory().withTransaction(
-											  (session, transaction) -> session.find(
-															  GuineaPig.class,
-															  expectedPig.getId(),
-															  LockMode.OPTIMISTIC_FORCE_INCREMENT
-													  )
-													  .thenAccept( actualPig -> {
-														  assertThatPigsAreEqual( expectedPig, actualPig );
-														  assertEquals(
-																  LockMode.OPTIMISTIC_FORCE_INCREMENT,
-																  session.getLockMode( actualPig )
-														  );
-														  assertEquals( 0, actualPig.version );
-													  } )
-									  )
+		test( context, populateDB()
+				.thenCompose( v -> getSessionFactory()
+						.withTransaction( session -> session
+								.find( GuineaPig.class, expectedPig.getId(), LockMode.OPTIMISTIC_FORCE_INCREMENT )
+								.thenAccept( actualPig -> {
+									assertThatPigsAreEqual( expectedPig, actualPig );
+									assertEquals( LockMode.OPTIMISTIC_FORCE_INCREMENT, session.getLockMode( actualPig ) );
+									assertEquals( 0, actualPig.version );
+								} )
 						)
-						.thenCompose( v -> openSession() )
-						.thenCompose( session -> session.find( GuineaPig.class, expectedPig.getId() ) )
-						.thenAccept( actualPig -> assertEquals( 1, actualPig.version ) )
+				)
+				.thenCompose( v -> openSession() )
+				.thenCompose( session -> session.find( GuineaPig.class, expectedPig.getId() ) )
+				.thenAccept( actualPig -> assertEquals( 1, actualPig.version ) )
 		);
 	}
 
