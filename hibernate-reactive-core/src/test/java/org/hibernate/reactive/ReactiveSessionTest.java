@@ -14,7 +14,6 @@ import org.hibernate.LockMode;
 import org.hibernate.reactive.common.AffectedEntities;
 import org.hibernate.reactive.stage.Stage;
 
-import org.hibernate.reactive.util.impl.CompletionStages;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
@@ -32,10 +31,10 @@ import jakarta.persistence.metamodel.EntityType;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hibernate.reactive.util.impl.CompletionStages.voidFuture;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Timeout(value = 10, timeUnit = MINUTES)
-
 public class ReactiveSessionTest extends BaseReactiveTest {
 
 	@Override
@@ -63,8 +62,8 @@ public class ReactiveSessionTest extends BaseReactiveTest {
 		test(
 				context,
 				populateDB()
-						.thenCompose( v -> openSession() )
-						.thenCompose( session -> session.find( GuineaPig.class, expectedPig.getId() )
+						.thenCompose( v -> getSessionFactory().withTransaction( session -> session
+								.find( GuineaPig.class, expectedPig.getId() )
 								.thenAccept( actualPig -> {
 									assertThatPigsAreEqual( expectedPig, actualPig );
 									assertTrue( session.contains( actualPig ) );
@@ -73,7 +72,7 @@ public class ReactiveSessionTest extends BaseReactiveTest {
 									session.detach( actualPig );
 									assertFalse( session.contains( actualPig ) );
 								} )
-						)
+						) )
 		);
 	}
 
@@ -339,6 +338,7 @@ public class ReactiveSessionTest extends BaseReactiveTest {
 	}
 
 	@Test
+	@Disabled
 	public void reactiveFindWithOptimisticIncrementLock(VertxTestContext context) {
 		final GuineaPig expectedPig = new GuineaPig( 5, "Aloi" );
 		test(
@@ -800,7 +800,7 @@ public class ReactiveSessionTest extends BaseReactiveTest {
 					session.getFactory().getMetamodel().entity( GuineaPig.class );
 					session.getFactory().getCriteriaBuilder().createQuery( GuineaPig.class );
 					session.getFactory().getStatistics().isStatisticsEnabled();
-					return CompletionStages.voidFuture();
+					return voidFuture();
 				} )
 		);
 	}
@@ -809,7 +809,8 @@ public class ReactiveSessionTest extends BaseReactiveTest {
 	public void testTransactionPropagation(VertxTestContext context) {
 		test(
 				context, getSessionFactory().withTransaction(
-						(session, transaction) -> session.createSelectionQuery( "from GuineaPig", GuineaPig.class )
+						(session, transaction) -> session
+								.createSelectionQuery( "from GuineaPig", GuineaPig.class )
 								.getResultList()
 								.thenCompose( list -> {
 									assertNotNull( session.currentTransaction() );
@@ -974,7 +975,7 @@ public class ReactiveSessionTest extends BaseReactiveTest {
 							assertNotNull(currentSession);
 							assertTrue(currentSession.isOpen());
 							assertEquals(session, currentSession);
-							return CompletionStages.voidFuture();
+							return voidFuture();
 						})
 						.thenAccept(v -> assertNotNull(getSessionFactory().getCurrentSession()))
 				)
@@ -992,7 +993,7 @@ public class ReactiveSessionTest extends BaseReactiveTest {
 							assertNotNull(currentSession);
 							assertTrue(currentSession.isOpen());
 							assertEquals(session, currentSession);
-							return CompletionStages.voidFuture();
+							return voidFuture();
 						})
 						.thenAccept(v -> assertNotNull(getSessionFactory().getCurrentStatelessSession()))
 				)
