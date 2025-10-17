@@ -190,6 +190,12 @@ public class ReactiveSessionImpl extends SessionImpl implements ReactiveSession,
 	}
 
 	@Override
+	public boolean isTransactionInProgress() {
+		return isOpenOrWaitingForAutoClose()
+				&& reactiveConnection.isTransactionInProgress();
+	}
+
+	@Override
 	public Dialect getDialect() {
 		threadCheck();
 		return getJdbcServices().getDialect();
