@@ -5,6 +5,8 @@
  */
 package org.hibernate.reactive.query.sqm.mutation.internal.cte;
 
+import org.hibernate.dialect.Dialect;
+import org.hibernate.dialect.PostgreSQLDialect;
 import org.hibernate.internal.util.MutableObject;
 import org.hibernate.query.spi.DomainQueryExecutionContext;
 import org.hibernate.query.sqm.internal.DomainParameterXref;
@@ -19,6 +21,7 @@ import org.hibernate.reactive.sql.exec.internal.StandardReactiveSelectExecutor;
 import org.hibernate.reactive.sql.results.spi.ReactiveListResultsConsumer;
 import org.hibernate.sql.ast.tree.cte.CteTable;
 import org.hibernate.sql.exec.spi.JdbcParameterBindings;
+import org.hibernate.sql.exec.spi.JdbcSelect;
 
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CompletionStage;
@@ -27,6 +30,8 @@ public class ReactiveCteInsertHandler extends CteInsertHandler implements Reacti
 
 	private static final Log LOG = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
+	private final Dialect dialect;
+
 	public ReactiveCteInsertHandler(
 			CteTable cteTable,
 			SqmInsertStatement<?> sqmStatement,
@@ -34,6 +39,7 @@ public class ReactiveCteInsertHandler extends CteInsertHandler implements Reacti
 			DomainQueryExecutionContext context,
 			MutableObject<JdbcParameterBindings> firstJdbcParameterBindingsConsumer) {
 		super( cteTable, sqmStatement, domainParameterXref, context, firstJdbcParameterBindingsConsumer );
+		this.dialect = context.getSession().getDialect();
 	}
 
 	@Override
@@ -45,11 +51,21 @@ public class ReactiveCteInsertHandler extends CteInsertHandler implements Reacti
 	public CompletionStage<Integer> reactiveExecute(
 			JdbcParameterBindings jdbcParameterBindings,
 			DomainQueryExecutionContext context) {
+		JdbcSelect jdbcSelect;
+
+		if ( dialect instanceof PostgreSQLDialect ) {
+			// need to replace parameters with explicit casts see https://github.com/eclipse-vertx/vertx-sql-client/issues/1540
+			jdbcSelect = new PostgreSQLCteMutationSelect( getSelect(), jdbcParameterBindings, context );
+		}
+		else {
+			jdbcSelect = getSelect();
+		}
+
 		return ( (ReactiveSharedSessionContractImplementor) context.getSession() )
-				.reactiveAutoFlushIfRequired( getSelect().getAffectedTableNames() )
+				.reactiveAutoFlushIfRequired( jdbcSelect.getAffectedTableNames() )
 				.thenCompose( v -> StandardReactiveSelectExecutor.INSTANCE
 						.list(
-								getSelect(),
+								jdbcSelect,
 								jdbcParameterBindings,
 								SqmJdbcExecutionContextAdapter.omittingLockingAndPaging( context ),
 								row -> row[0],
@@ -60,4 +76,5 @@ public class ReactiveCteInsertHandler extends CteInsertHandler implements Reacti
 						.thenApply( list -> ( (Number) list.get( 0 ) ).intValue() )
 				);
 	}
+
 }
