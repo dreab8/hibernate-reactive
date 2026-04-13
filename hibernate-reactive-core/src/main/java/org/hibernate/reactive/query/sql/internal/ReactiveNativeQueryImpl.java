@@ -4,18 +4,6 @@
  */
 package org.hibernate.reactive.query.sql.internal;
 
-import java.lang.invoke.MethodHandles;
-import java.time.Instant;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletionStage;
-
 import org.hibernate.CacheMode;
 import org.hibernate.FlushMode;
 import org.hibernate.HibernateException;
@@ -29,13 +17,14 @@ import org.hibernate.metamodel.model.domain.BasicDomainType;
 import org.hibernate.query.QueryParameter;
 import org.hibernate.query.ResultListTransformer;
 import org.hibernate.query.TupleTransformer;
+import org.hibernate.query.internal.AbstractQuery;
 import org.hibernate.query.named.NamedResultSetMappingMemento;
+import org.hibernate.query.named.internal.NativeMutationMementoImpl;
+import org.hibernate.query.named.internal.NativeSelectionMementoImpl;
 import org.hibernate.query.results.internal.dynamic.DynamicResultBuilderEntityStandard;
-import org.hibernate.query.spi.AbstractSelectionQuery;
 import org.hibernate.query.spi.NonSelectQueryPlan;
 import org.hibernate.query.spi.QueryInterpretationCache;
 import org.hibernate.query.sql.internal.NativeQueryImpl;
-import org.hibernate.query.sql.spi.NamedNativeQueryMemento;
 import org.hibernate.reactive.logging.impl.Log;
 import org.hibernate.reactive.logging.impl.LoggerFactory;
 import org.hibernate.reactive.query.spi.ReactiveAbstractSelectionQuery;
@@ -55,6 +44,17 @@ import jakarta.persistence.Parameter;
 import jakarta.persistence.TemporalType;
 import jakarta.persistence.metamodel.SingularAttribute;
 import jakarta.persistence.metamodel.Type;
+import java.lang.invoke.MethodHandles;
+import java.time.Instant;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletionStage;
 
 import static org.hibernate.reactive.util.impl.CompletionStages.voidFuture;
 
@@ -71,34 +71,37 @@ public class ReactiveNativeQueryImpl<R> extends NativeQueryImpl<R>
 		this.selectionQueryDelegate = createSelectionQueryDelegate( session );
 	}
 
-	public ReactiveNativeQueryImpl(String sql, Class<R> resultClass, SharedSessionContractImplementor session) {
-		super( sql, resultClass, session );
+	public ReactiveNativeQueryImpl(String sql, boolean flag, SharedSessionContractImplementor session) {
+		super(sql, flag, session);
+		this.selectionQueryDelegate = createSelectionQueryDelegate( session );
+	}
+
+	public ReactiveNativeQueryImpl(
+			NativeSelectionMementoImpl<?> selectionMemento,
+			Class<R> specifiedResultType,
+			String specifiedResultSetMappingName,
+			SharedSessionContractImplementor session) {
+		super( selectionMemento, specifiedResultType, specifiedResultSetMappingName, session );
+		this.selectionQueryDelegate = createSelectionQueryDelegate( session );
+	}
+
+	public ReactiveNativeQueryImpl(
+			NativeMutationMementoImpl<R> mutationMemento,
+			SharedSessionContractImplementor session) {
+		super( mutationMemento, session );
+		this.selectionQueryDelegate = createSelectionQueryDelegate( session );
+	}
+
+	public ReactiveNativeQueryImpl(
+			String sql,
+			jakarta.persistence.sql.ResultSetMapping<R> resultSetMapping,
+			SharedSessionContractImplementor session) {
+		super( sql, resultSetMapping, session );
 		this.selectionQueryDelegate = createSelectionQueryDelegate( session );
 	}
 
 	public ReactiveNativeQueryImpl(String sql, NamedResultSetMappingMemento resultSetMappingMemento, Class<R> resultClass, SharedSessionContractImplementor session) {
 		super( sql, resultSetMappingMemento, resultClass, session);
-		this.selectionQueryDelegate = createSelectionQueryDelegate( session );
-	}
-
-	public ReactiveNativeQueryImpl(NamedNativeQueryMemento memento, SharedSessionContractImplementor session) {
-		super( memento, session );
-		this.selectionQueryDelegate = createSelectionQueryDelegate( session );
-	}
-
-	public ReactiveNativeQueryImpl(
-			NamedNativeQueryMemento memento,
-			Class<R> resultJavaType,
-			SharedSessionContractImplementor session) {
-		super( memento, resultJavaType, session );
-		this.selectionQueryDelegate = createSelectionQueryDelegate( session );
-	}
-
-	public ReactiveNativeQueryImpl(
-			NamedNativeQueryMemento memento,
-			String resultSetMappingName,
-			SharedSessionContractImplementor session) {
-		super( memento, resultSetMappingName, session );
 		this.selectionQueryDelegate = createSelectionQueryDelegate( session );
 	}
 
@@ -129,7 +132,7 @@ public class ReactiveNativeQueryImpl<R> extends NativeQueryImpl<R>
 				this::getQueryString,
 				this::reactiveBeforeQuery,
 				this::afterQuery,
-				AbstractSelectionQuery::uniqueElement,
+				AbstractQuery::uniqueElement,
 				null
 		);
 	}
@@ -262,18 +265,6 @@ public class ReactiveNativeQueryImpl<R> extends NativeQueryImpl<R>
 	@Override
 	public Optional<R> uniqueResultOptional() {
 		return selectionQueryDelegate.uniqueResultOptional();
-	}
-
-	@Override
-	public ReactiveNativeQueryImpl<R> applyGraph(RootGraph graph, GraphSemantic semantic) {
-		super.applyGraph( graph, semantic );
-		return this;
-	}
-
-	@Override
-	public ReactiveNativeQueryImpl<R> applyFetchGraph(RootGraph graph) {
-		super.applyFetchGraph( graph );
-		return this;
 	}
 
 	@Override
@@ -457,12 +448,6 @@ public class ReactiveNativeQueryImpl<R> extends NativeQueryImpl<R>
 
 
 	@Override
-	public ReactiveNativeQueryImpl<R> applyLoadGraph(RootGraph graph) {
-		super.applyLoadGraph( graph );
-		return this;
-	}
-
-	@Override
 	public ReactiveNativeQueryImpl<R> setHint(String hintName, Object value) {
 		super.setHint( hintName, value );
 		return this;
@@ -532,6 +517,11 @@ public class ReactiveNativeQueryImpl<R> extends NativeQueryImpl<R>
 	public ReactiveNativeQueryImpl<R> setReadOnly(boolean readOnly) {
 		super.setReadOnly( readOnly );
 		return this;
+	}
+
+	@Override
+	public LockOptions getLockOptions() {
+		return null;
 	}
 
 	@Override

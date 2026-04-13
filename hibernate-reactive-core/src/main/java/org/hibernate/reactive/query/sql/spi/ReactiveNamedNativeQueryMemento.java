@@ -4,10 +4,10 @@
  */
 package org.hibernate.reactive.query.sql.spi;
 
+import jakarta.persistence.Timeout;
 import java.util.Map;
 import java.util.Set;
 
-import org.hibernate.CacheMode;
 import org.hibernate.FlushMode;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.query.spi.QueryEngine;
@@ -24,11 +24,6 @@ public class ReactiveNamedNativeQueryMemento<E> implements NamedNativeQueryMemen
 
 	public ReactiveNamedNativeQueryMemento(NamedNativeQueryMemento<E> delegate) {
 		this.delegate = delegate;
-	}
-
-	@Override
-	public Class<? extends E> getResultType() {
-		return delegate.getResultType();
 	}
 
 	@Override
@@ -49,11 +44,6 @@ public class ReactiveNamedNativeQueryMemento<E> implements NamedNativeQueryMemen
 	@Override
 	public String getResultMappingName() {
 		return delegate.getResultMappingName();
-	}
-
-	@Override
-	public Class<?> getResultMappingClass() {
-		return delegate.getResultMappingClass();
 	}
 
 	@Override
@@ -92,38 +82,13 @@ public class ReactiveNamedNativeQueryMemento<E> implements NamedNativeQueryMemen
 	}
 
 	@Override
-	public Boolean getCacheable() {
-		return delegate.getCacheable();
-	}
-
-	@Override
-	public String getCacheRegion() {
-		return delegate.getCacheRegion();
-	}
-
-	@Override
-	public CacheMode getCacheMode() {
-		return delegate.getCacheMode();
-	}
-
-	@Override
 	public FlushMode getFlushMode() {
 		return delegate.getFlushMode();
 	}
 
 	@Override
-	public Boolean getReadOnly() {
-		return delegate.getReadOnly();
-	}
-
-	@Override
-	public Integer getTimeout() {
+	public Timeout getTimeout() {
 		return delegate.getTimeout();
-	}
-
-	@Override
-	public Integer getFetchSize() {
-		return delegate.getFetchSize();
 	}
 
 	@Override
