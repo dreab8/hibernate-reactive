@@ -24,7 +24,7 @@ import org.hibernate.query.named.NamedSelectionMemento;
 import org.hibernate.query.spi.QueryEngine;
 import org.hibernate.query.named.NamedNativeQueryMemento;
 import org.hibernate.query.named.NamedSqmQueryMemento;
-import org.hibernate.reactive.query.sql.spi.ReactiveNamedNativeQueryMemento;
+import org.hibernate.reactive.query.named.ReactiveNativeQueryMemento;
 import org.hibernate.reactive.query.sql.spi.ReactiveNamedSqmQueryMemento;
 
 import jakarta.persistence.TypedQueryReference;
@@ -174,11 +174,11 @@ public class ReactiveNamedObjectRepositoryImpl implements NamedObjectRepository 
 			return null;
 		}
 		//Avoid nested wrapping!
-		else if ( nativeQueryMemento instanceof ReactiveNamedNativeQueryMemento ) {
+		else if ( nativeQueryMemento instanceof ReactiveNativeQueryMemento ) {
 			return nativeQueryMemento;
 		}
 		else {
-			return new ReactiveNamedNativeQueryMemento( nativeQueryMemento );
+			return new ReactiveNativeQueryMemento( nativeQueryMemento );
 		}
 	}
 

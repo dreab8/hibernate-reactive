@@ -4,18 +4,25 @@
  */
 package org.hibernate.reactive.query;
 
+import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.EntityGraph;
+import jakarta.persistence.PessimisticLockScope;
+import jakarta.persistence.Timeout;
 import java.time.Instant;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 import jakarta.persistence.metamodel.Type;
 import org.hibernate.CacheMode;
-import org.hibernate.FlushMode;
 import org.hibernate.LockMode;
-import org.hibernate.LockOptions;
-import org.hibernate.query.ParameterMetadata;
+import org.hibernate.Locking;
+import org.hibernate.ScrollMode;
+import org.hibernate.ScrollableResults;
+import org.hibernate.query.Query;
+import org.hibernate.query.QueryFlushMode;
 import org.hibernate.query.QueryParameter;
 import org.hibernate.query.ResultListTransformer;
 import org.hibernate.query.TupleTransformer;
@@ -27,16 +34,28 @@ import jakarta.persistence.FlushModeType;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.Parameter;
 import jakarta.persistence.TemporalType;
+import java.util.Optional;
 
 /**
  * @see org.hibernate.query.Query
  */
-public interface ReactiveQuery<R> extends ReactiveSelectionQuery<R>, ReactiveMutationQuery<R> {
-	@Override
+public interface ReactiveQuery<R> extends Query<R> {
+
 	String getQueryString();
 
 	@Override
-	String getComment();
+	ReactiveSelectionQuery<R> asSelectionQuery();
+
+	@Override
+	<R> ReactiveSelectionQuery<R> ofType(Class<R> type);
+
+	@Override
+	<R> ReactiveSelectionQuery<R> withEntityGraph(EntityGraph<R> entityGraph);
+
+	@Override
+	ReactiveMutationQuery<R> asStatement();
+
+	ReactiveQuery<R> setQueryFlushMode(QueryFlushMode queryFlushMode);
 
 	@Override
 	ReactiveQuery<R> setComment(String comment);
@@ -44,422 +63,409 @@ public interface ReactiveQuery<R> extends ReactiveSelectionQuery<R>, ReactiveMut
 	ReactiveQuery<R> addQueryHint(String hint);
 
 	@Override
-	LockOptions getLockOptions();
-
-	ReactiveQuery<R> setLockOptions(LockOptions lockOptions);
+	ReactiveQuery<R> setTimeout(int timeout);
 
 	@Override
-	ReactiveQuery<R> setLockMode(String alias, LockMode lockMode);
-
-	<T> ReactiveQuery<T> setTupleTransformer(TupleTransformer<T> transformer);
-
-	ReactiveQuery<R> setResultListTransformer(ResultListTransformer<R> transformer);
-
-	QueryOptions getQueryOptions();
+	ReactiveQuery<R> setTimeout(Integer timeout);
 
 	@Override
-	ParameterMetadata getParameterMetadata();
+	ReactiveQuery<R> setTimeout(Timeout timeout);
 
+	boolean isQueryPlanCacheable();
+
+	ReactiveQuery<R> setQueryPlanCacheable(boolean queryPlanCacheable);
+
+	@Override
+	ReactiveQuery<R> setHint(String hintName, Object value);
+
+
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	// Parameter Handling
+
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	ReactiveQuery<R> setParameter(String parameter, Object argument);
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	<P> ReactiveQuery<R> setParameter(String parameter, P argument, Class<P> type);
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	<P> ReactiveQuery<R> setParameter(String parameter, P argument, Type<P> type);
 
 	/**
-	 * Bind an {@link Instant} value to the named query parameter using
-	 * just the portion indicated by the given {@link TemporalType}.
-	 */
-	ReactiveQuery<R> setParameter(String parameter, Instant argument, TemporalType temporalType);
-
-	@Override
-	ReactiveQuery<R> setParameter(String parameter, Calendar argument, TemporalType temporalType);
-
-	@Override
-	ReactiveQuery<R> setParameter(String parameter, Date argument, TemporalType temporalType);
-
-	/**
-	 * Bind the given argument to an ordinal query parameter.
-	 * <p>
-	 * If the type of the parameter cannot be inferred from the context in
-	 * which it occurs, use one of the forms which accepts a "type".
-	 *
-	 * @see #setParameter(int, Object, Class)
-	 * @see #setParameter(int, Object, Type)
+	 * {@inheritDoc}
 	 */
 	@Override
 	ReactiveQuery<R> setParameter(int parameter, Object argument);
 
 	/**
-	 * Bind the given argument to an ordinal query parameter using the given
-	 * Class reference to attempt to determine the {@link Type}
-	 * to use.  If unable to determine an appropriate {@link Type},
-	 * {@link #setParameter(int, Object)} is used.
-	 *
-	 * @see #setParameter(int, Object, Type)
+	 * {@inheritDoc}
 	 */
 	@Override
 	<P> ReactiveQuery<R> setParameter(int parameter, P argument, Class<P> type);
 
 	/**
-	 * Bind the given argument to an ordinal query parameter using the given
-	 * {@link Type}.
+	 * {@inheritDoc}
 	 */
 	@Override
 	<P> ReactiveQuery<R> setParameter(int parameter, P argument, Type<P> type);
 
 	/**
-	 * Bind an {@link Instant} value to the ordinal query parameter using
-	 * just the portion indicated by the given {@link TemporalType}.
+	 * {@inheritDoc}
 	 */
 	@Override
-	ReactiveQuery<R> setParameter(int parameter, Instant argument, TemporalType temporalType);
+	<P> ReactiveQuery<R> setParameter(QueryParameter<P> parameter, P argument);
 
 	/**
-	 * {@link jakarta.persistence.Query} override
+	 * {@inheritDoc}
 	 */
-	@Override
-	ReactiveQuery<R> setParameter(int parameter, Date argument, TemporalType temporalType);
-
-	/**
-	 * {@link jakarta.persistence.Query} override
-	 */
-	@Override
-	ReactiveQuery<R> setParameter(int parameter, Calendar argument, TemporalType temporalType);
-
-	@Override
-	<T> ReactiveQuery<R> setParameter(QueryParameter<T> parameter, T argument);
-
 	@Override
 	<P> ReactiveQuery<R> setParameter(QueryParameter<P> parameter, P argument, Class<P> type);
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	<P> ReactiveQuery<R> setParameter(QueryParameter<P> parameter, P argument, Type<P> type);
 
-	@Override
-	<T> ReactiveQuery<R> setParameter(Parameter<T> parameter, T argument);
-
-	@Override
-	ReactiveQuery<R> setParameter(Parameter<Calendar> parameter, Calendar argument, TemporalType temporalType);
-
-	@Override
-	ReactiveQuery<R> setParameter(Parameter<Date> parameter, Date argument, TemporalType temporalType);
-
-	@Override
-	ReactiveQuery<R> setParameterList(String parameter, @SuppressWarnings("rawtypes") Collection arguments);
-
-	@Override
-	<P> ReactiveQuery<R> setParameterList(String parameter, Collection<? extends P> arguments, Class<P> javaType);
-
 	/**
-	 * Bind multiple arguments to a named query parameter using the given
-	 * {@link Type}.
-	 *
-	 * @apiNote This is used for binding a list of values to an expression
-	 * such as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
+	 * {@inheritDoc}
 	 */
 	@Override
-	<P> ReactiveQuery<R> setParameterList(String parameter, Collection<? extends P> arguments, Type<P> type);
-
- 	/**
-	 * Bind multiple arguments to a named query parameter.
-	 * <p/>
-	 * The "type mapping" for the binding is inferred from the type of
-	 * the first collection element.
-	 *
-	 * @apiNote This is used for binding a list of values to an expression s
-	 * uch as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	ReactiveQuery<R> setParameterList(String parameter, Object[] values);
+	<P> ReactiveQuery<R> setParameter(Parameter<P> parameter, P argument);
 
 	/**
-	 * Bind multiple arguments to a named query parameter using the given
-	 * Class reference to attempt to determine the {@link Type}
-	 * to use.  If unable to determine an appropriate {@link Type},
-	 * {@link #setParameterList(String, Collection)} is used.
-	 *
-	 * @see #setParameterList(java.lang.String, Object[], Type)
-	 *
-	 * @apiNote This is used for binding a list of values to an expression
-	 * such as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
+	 * {@inheritDoc}
 	 */
 	@Override
-	<P> ReactiveQuery<R> setParameterList(String parameter, P[] arguments, Class<P> javaType);
-
+	<P> ReactiveQuery<R> setConvertedParameter(String name, P value, Class<? extends AttributeConverter<P, ?>> converter);
 
 	/**
-	 * Bind multiple arguments to a named query parameter using the given
-	 * {@link Type}.
-	 *
-	 * @apiNote This is used for binding a list of values to an expression
-	 * such as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
+	 * {@inheritDoc}
 	 */
 	@Override
-	<P> ReactiveQuery<R> setParameterList(String parameter, P[] arguments, Type<P> type);
+	<P> ReactiveQuery<R> setConvertedParameter(int position, P value, Class<? extends AttributeConverter<P, ?>> converter);
 
 	/**
-	 * Bind multiple arguments to an ordinal query parameter.
-	 * <p/>
-	 * The "type mapping" for the binding is inferred from the type of
-	 * the first collection element.
-	 *
-	 * @apiNote This is used for binding a list of values to an expression
-	 * such as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	ReactiveQuery<R> setParameterList(int parameter, @SuppressWarnings("rawtypes") Collection arguments);
-
-	/**
-	 * Bind multiple arguments to an ordinal query parameter using the given
-	 * Class reference to attempt to determine the {@link Type}
-	 * to use.  If unable to determine an appropriate {@link Type},
-	 * {@link #setParameterList(String, Collection)} is used.
-	 *
-	 * @see #setParameterList(int, Collection, Type)
-	 *
-	 * @apiNote This is used for binding a list of values to an expression
-	 * such as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	<P> ReactiveQuery<R> setParameterList(int parameter, Collection<? extends P> arguments, Class<P> javaType);
-
-	/**
-	 * Bind multiple arguments to an ordinal query parameter using the given
-	 * {@link Type}.
-	 *
-	 * @apiNote This is used for binding a list of values to an expression
-	 * such as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	<P> ReactiveQuery<R> setParameterList(int parameter, Collection<? extends P> arguments, Type<P> type);
-
-	/**
-	 * Bind multiple arguments to an ordinal query parameter.
-	 * <p>
-	 * The "type mapping" for the binding is inferred from the type of the
-	 * first collection element.
-	 *
-	 * @apiNote This is used for binding a list of values to an expression
-	 * such as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	ReactiveQuery<R> setParameterList(int parameter, Object[] arguments);
-
-	/**
-	 * Bind multiple arguments to an ordinal query parameter using the given
-	 * {@link Class} reference to attempt to determine the {@link Type}
-	 * to use. If unable to determine an appropriate {@link Type},
-	 * {@link #setParameterList(String, Collection)} is used.
-	 *
-	 * @see #setParameterList(int, Object[], Type)
-	 *
-	 * @apiNote This is used for binding a list of values to an expression
-	 * such as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	<P> ReactiveQuery<R> setParameterList(int parameter, P[] arguments, Class<P> javaType);
-
-	/**
-	 * Bind multiple arguments to an ordinal query parameter using the given
-	 * {@link Type}.
-	 *
-	 * @apiNote This is used for binding a list of values to an expression
-	 * such as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	<P> ReactiveQuery<R> setParameterList(int parameter, P[] arguments, Type<P> type);
-
-	/**
-	 * Bind multiple arguments to the query parameter represented by the given
-	 * {@link QueryParameter}.
-	 * <p>
-	 * The type of the parameter is inferred from the context in which it occurs,
-	 * and from the type of the first given argument.
-	 *
-	 * @param parameter the parameter memento
-	 * @param arguments a collection of arguments
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, Collection<? extends P> arguments);
-
-	/**
-	 * Bind multiple arguments to the query parameter represented by the given
-	 * {@link QueryParameter} using the given Class reference to attempt to
-	 * determine the {@link Type} to use. If unable to determine an
-	 * appropriate {@link Type}, {@link #setParameterList(String, Collection)}
-	 * is used.
-	 *
-	 * @see #setParameterList(QueryParameter, java.util.Collection, Type)
-	 *
-	 * @apiNote This is used for binding a list of values to an expression such
-	 * as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, Collection<? extends P> arguments, Class<P> javaType);
-
-	/**
-	 * Bind multiple arguments to the query parameter represented by the given
-	 * {@link QueryParameter}, inferring the {@link Type}.
-	 * <p>
-	 * The "type mapping" for the binding is inferred from the type of the first
-	 * collection element.
-	 *
-	 * @apiNote This is used for binding a list of values to an expression such
-	 * as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, Collection<? extends P> arguments, Type<P> type);
-
-	/**
-	 * Bind multiple arguments to the query parameter represented by the
-	 * given {@link QueryParameter}
-	 * <p>
-	 * The type of the parameter is inferred between the context in which it
-	 * occurs, the type associated with the QueryParameter and the type of
-	 * the first given argument.
-	 *
-	 * @param parameter the parameter memento
-	 * @param arguments a collection of arguments
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, P[] arguments);
-
-	/**
-	 * Bind multiple arguments to the query parameter represented by the
-	 * given {@link QueryParameter} using the given Class reference to attempt
-	 * to determine the {@link Type} to use.  If unable to
-	 * determine an appropriate {@link Type},
-	 * {@link #setParameterList(String, Collection)} is used
-	 *
-	 * @see #setParameterList(QueryParameter, Object[], Type)
-	 *
-	 * @apiNote This is used for binding a list of values to an expression such
-	 * as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, P[] arguments, Class<P> javaType);
-
-	/**
-	 * Bind multiple arguments to the query parameter represented by the
-	 * given {@link QueryParameter}, inferring the {@link Type}.
-	 * <p>
-	 * The "type mapping" for the binding is inferred from the type of
-	 * the first collection element
-	 *
-	 * @apiNote This is used for binding a list of values to an expression such
-	 * as {@code entity.field in (:values)}.
-	 *
-	 * @return {@code this}, for method chaining
-	 */
-	@Override
-	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, P[] arguments, Type<P> type);
-
-	/**
-	 * Bind the property values of the given bean to named parameters of the query,
-	 * matching property names with parameter names and mapping property types to
-	 * Hibernate types using heuristics.
-	 *
-	 * @param bean any JavaBean or POJO
-	 *
-	 * @return {@code this}, for method chaining
+	 * {@inheritDoc}
 	 */
 	@Override
 	ReactiveQuery<R> setProperties(Object bean);
 
 	/**
-	 * Bind the values of the given Map for each named parameters of the query,
-	 * matching key names with parameter names and mapping value types to
-	 * Hibernate types using heuristics.
-	 *
-	 * @param bean a {@link Map} of names to arguments
-	 *
-	 * @return {@code this}, for method chaining
+	 * {@inheritDoc}
 	 */
 	@Override
 	ReactiveQuery<R> setProperties(@SuppressWarnings("rawtypes") Map bean);
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	ReactiveQuery<R> setParameterList(String parameter, @SuppressWarnings("rawtypes") Collection arguments);
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	<P> ReactiveQuery<R> setParameterList(String parameter, Collection<? extends P> arguments, Class<P> javaType);
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	<P> ReactiveQuery<R> setParameterList(String parameter, Collection<? extends P> arguments, Type<P> type);
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	ReactiveQuery<R> setParameterList(String parameter, Object[] values);
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	<P> ReactiveQuery<R> setParameterList(String parameter, P[] arguments, Class<P> javaType);
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	<P> ReactiveQuery<R> setParameterList(String parameter, P[] arguments, Type<P> type);
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	ReactiveQuery<R> setParameterList(int parameter, @SuppressWarnings("rawtypes") Collection arguments);
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	<P> ReactiveQuery<R> setParameterList(int parameter, Collection<? extends P> arguments, Class<P> javaType);
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	<P> ReactiveQuery<R> setParameterList(int parameter, Collection<? extends P> arguments, Type<P> type);
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	ReactiveQuery<R> setParameterList(int parameter, Object[] arguments);
+
+	@Override
+	<P> ReactiveQuery<R> setParameterList(int parameter, P[] arguments, Class<P> javaType);
+
+	@Override
+	<P> ReactiveQuery<R> setParameterList(int parameter, P[] arguments, Type<P> type);
+
+	@Override
+	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, Collection<? extends P> arguments);
+
+	@Override
+	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, Collection<? extends P> arguments, Class<P> javaType);
+
+	@Override
+	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, Collection<? extends P> arguments, Type<P> type);
+
+	@Override
+	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, P[] arguments);
+
+	@Override
+	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, P[] arguments, Class<P> javaType);
+
+	@Override
+	<P> ReactiveQuery<R> setParameterList(QueryParameter<P> parameter, P[] arguments, Type<P> type);
+
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// covariant overrides - CommonQueryContract
+	// Methods which inherently imply either selection or mutation queries
 
-	@Override
-	ReactiveQuery<R> setHibernateFlushMode(FlushMode flushMode);
+	@Deprecated
+	Integer getFetchSize();
 
-	@Override
+	@Deprecated
+	ReactiveQuery<R> setFetchSize(int fetchSize);
+
+	boolean isReadOnly();
+
+	ReactiveQuery<R> setReadOnly(boolean readOnly);
+
+	@Deprecated
+	boolean isCacheable();
+
+	/**
+	 * Enable/disable second level query (result) caching for this query.
+	 *
+	 * @see #isCacheable
+	 *
+	 * @deprecated Use {@linkplain ReactiveSelectionQuery} instead as caching is only relevant for
+	 * selection queries
+	 */
+	@Deprecated(since = "8.0", forRemoval = true)
 	ReactiveQuery<R> setCacheable(boolean cacheable);
 
-	@Override
-	ReactiveQuery<R> setCacheRegion(String cacheRegion);
+	@Deprecated
+	CacheMode getCacheMode();
 
-	@Override
+	@Deprecated
 	ReactiveQuery<R> setCacheMode(CacheMode cacheMode);
 
+	@Deprecated
+	String getCacheRegion();
+
+	@Deprecated
+	ReactiveQuery<R> setCacheRegion(String cacheRegion);
+
+	/**
+	 * @deprecated Use {@linkplain ReactiveSelectionQuery} instead as second-level cache
+	 * interaction is only relevant for queries which return results.
+	 */
+	@Deprecated
 	@Override
 	ReactiveQuery<R> setCacheStoreMode(CacheStoreMode cacheStoreMode);
 
-	@Override
+	/**
+	 * @deprecated Use {@linkplain ReactiveSelectionQuery} instead as second-level cache
+	 * interaction is only relevant for queries which return results.
+	 */
+	@Override @Deprecated
 	ReactiveQuery<R> setCacheRetrieveMode(CacheRetrieveMode cacheRetrieveMode);
 
+	/**
+	 * @deprecated Use {@linkplain ReactiveSelectionQuery} instead as applying result limits
+	 * is only relevant for queries which return results.
+	 */
+	@Deprecated
 	@Override
-	ReactiveQuery<R> setTimeout(int timeout);
+	ReactiveQuery<R> setMaxResults(int maxResults);
 
-	@Override
-	ReactiveQuery<R> setFetchSize(int fetchSize);
-
-	@Override
-	ReactiveQuery<R> setReadOnly(boolean readOnly);
-
-
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// covariant overrides - jakarta.persistence.Query/TypedQuery
-
-	@Override
-	ReactiveQuery<R> setMaxResults(int maxResult);
-
+	@Deprecated
 	@Override
 	ReactiveQuery<R> setFirstResult(int startPosition);
 
-	@Override
-	ReactiveQuery<R> setHint(String hintName, Object value);
 
 	@Override
-	ReactiveQuery<R> setFlushMode(FlushModeType flushMode);
-
-	@Override
+	@Deprecated
 	ReactiveQuery<R> setLockMode(LockModeType lockMode);
 
+	@Deprecated
+	LockMode getHibernateLockMode();
+
+	@Deprecated
+	ReactiveQuery<R> setHibernateLockMode(LockMode lockMode);
+
+	@Deprecated
+	Timeout getLockTimeout();
+
+	@Deprecated
+	ReactiveQuery<R> setLockTimeout(Timeout lockTimeout);
+
+	@Deprecated
+	ReactiveQuery<R> setLockScope(PessimisticLockScope lockScope);
+
+	@Deprecated
+	ReactiveQuery<R> setFollowOnLockingStrategy(Locking.FollowOn strategy);
+
+	@Deprecated
+	ReactiveQuery<R> setFollowOnStrategy(Locking.FollowOn strategy);
+
+	<X> ReactiveQuery<X> setTupleTransformer(TupleTransformer<X> transformer);
+
+	ReactiveQuery<R> setResultListTransformer(ResultListTransformer<R> transformer);
+
+	@Deprecated
+	List<R> list();
+
+//	@Override
+//	@Deprecated
+//	default List<R> getResultList() {
+//		return list();
+//	}
+
+	@Deprecated
+	ScrollableResults<R> scroll();
+
+	@Deprecated
+	ScrollableResults<R> scroll(ScrollMode scrollMode);
+
+//	@Override
+//	@Deprecated
+//	default Stream<R> getResultStream() {
+//		return stream();
+//	}
+//
+//	@Deprecated
+//	default Stream<R> stream() {
+//		return list().stream();
+//	}
+
+	@Deprecated
+	R uniqueResult();
+
+	@Override
+	@Deprecated
+	R getSingleResult();
+
+	@Deprecated
+	Optional<R> uniqueResultOptional();
+
+	@Override
+	@Deprecated
+	int executeUpdate();
+
+//	@Override @Deprecated
+//	default FlushModeType getFlushMode() {
+//		final QueryFlushMode queryFlushMode = getQueryFlushMode();
+//		if ( queryFlushMode == null ) {
+//			return FlushModeType.AUTO;
+//		}
+//		return queryFlushMode.toJpaFlushMode();
+//	}
+
+	@Override @Deprecated
+	default ReactiveQuery<R> setFlushMode(FlushModeType flushMode) {
+		setQueryFlushMode( QueryFlushMode.fromJpaMode( flushMode ) );
+		return this;
+	}
+
+	/**
+	 * Get the execution options for this {@code Query}. Many of the setters
+	 * of this object update the state of the returned {@link QueryOptions}.
+	 * This is useful because it gives access to s primitive value in its
+	 * (nullable) wrapper form, rather than the primitive form as required
+	 * by JPA. This allows us to distinguish whether a value has been
+	 * explicitly set by the client.
+	 *
+	 * @return Return the encapsulation of this query's options.
+	 *
+	 * @deprecated The various ReactiveQuery<R> subtypes already expose all relevant options;
+	 * plus exposing QueryOptions is layer-breaking as it is an SPI contract
+	 * exposed on an API.
+	 */
+	@Deprecated(since = "8.0", forRemoval = true)
+	QueryOptions getQueryOptions();
+
+	/**
+	 * {@link jakarta.persistence.Query} override
+	 */
+	@Override @Deprecated
+	ReactiveQuery<R> setParameter(Parameter<Calendar> parameter, Calendar argument, TemporalType temporalType);
+
+	/**
+	 * {@link jakarta.persistence.Query} override
+	 */
+	@Override @Deprecated
+	ReactiveQuery<R> setParameter(Parameter<Date> parameter, Date argument, TemporalType temporalType);
+
+	/**
+	 * Bind an {@link Instant} value to the named ReactiveQuery<R> parameter using
+	 * just the portion indicated by the given {@link TemporalType}.
+	 */
+	@Deprecated
+	ReactiveQuery<R> setParameter(String parameter, Instant argument, TemporalType temporalType);
+
+	/**
+	 * {@link jakarta.persistence.Query} override
+	 */
+	@Override @Deprecated
+	ReactiveQuery<R> setParameter(String parameter, Calendar argument, TemporalType temporalType);
+
+	/**
+	 * {@link jakarta.persistence.Query} override
+	 */
+	@Override @Deprecated
+	ReactiveQuery<R> setParameter(String parameter, Date argument, TemporalType temporalType);
+
+	/**
+	 * Bind an {@link Instant} value to the ordinal ReactiveQuery<R> parameter using
+	 * just the portion indicated by the given {@link TemporalType}.
+	 */
+	@Deprecated
+	ReactiveQuery<R> setParameter(int parameter, Instant argument, TemporalType temporalType);
+
+	/**
+	 * {@link jakarta.persistence.Query} override
+	 */
+	@Override @Deprecated
+	ReactiveQuery<R> setParameter(int parameter, Date argument, TemporalType temporalType);
+
+	/**
+	 * {@link jakarta.persistence.Query} override
+	 */
+	@Override @Deprecated
+	ReactiveQuery<R> setParameter(int parameter, Calendar argument, TemporalType temporalType);
 }

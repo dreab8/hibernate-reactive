@@ -4,6 +4,8 @@
  */
 package org.hibernate.reactive.query;
 
+import jakarta.persistence.PessimisticLockScope;
+import jakarta.persistence.Timeout;
 import java.time.Instant;
 import java.util.Calendar;
 import java.util.Collection;
@@ -12,14 +14,15 @@ import java.util.Map;
 
 import jakarta.persistence.metamodel.Type;
 import org.hibernate.CacheMode;
-import org.hibernate.FlushMode;
 import org.hibernate.LockMode;
-import org.hibernate.LockOptions;
+import org.hibernate.MappingException;
 import org.hibernate.metamodel.model.domain.BasicDomainType;
 import org.hibernate.query.NativeQuery;
 import org.hibernate.query.NativeQuery.FetchReturn;
+import org.hibernate.query.QueryFlushMode;
 import org.hibernate.query.QueryParameter;
 import org.hibernate.query.ResultListTransformer;
+import org.hibernate.query.SynchronizeableQuery;
 import org.hibernate.query.TupleTransformer;
 import org.hibernate.type.BasicTypeReference;
 
@@ -35,120 +38,52 @@ import jakarta.persistence.metamodel.SingularAttribute;
 /**
  * @see org.hibernate.query.NativeQuery
  */
-public interface ReactiveNativeQuery<R> extends ReactiveQuery<R> {
-	ReactiveNativeQuery<R> addScalar(String columnAlias);
-
-	ReactiveNativeQuery<R> addScalar(String columnAlias, @SuppressWarnings("rawtypes") BasicTypeReference type);
-
-	ReactiveNativeQuery<R> addScalar(String columnAlias, @SuppressWarnings("rawtypes") BasicDomainType type);
-	ReactiveNativeQuery<R> addScalar(String columnAlias, @SuppressWarnings("rawtypes") Class javaType);
-
-	ReactiveNativeQuery<R> addScalar(int position, Class<?> type);
-
-	<C> ReactiveNativeQuery<R> addScalar(String columnAlias, Class<C> relationalJavaType, AttributeConverter<?,C> converter);
-
-	<O,T> ReactiveNativeQuery<R> addScalar(String columnAlias, Class<O> domainJavaType, Class<T> jdbcJavaType, AttributeConverter<O,T> converter);
-
-	<C> ReactiveNativeQuery<R> addScalar(String columnAlias, Class<C> relationalJavaType, Class<? extends AttributeConverter<?,C>> converter);
-
-	<O,T> ReactiveNativeQuery<R> addScalar(String columnAlias, Class<O> domainJavaType, Class<T> jdbcJavaType, Class<? extends AttributeConverter<O,T>> converter);
-
-	<J> NativeQuery.InstantiationResultNode<J> addInstantiation(Class<J> targetJavaType);
-
-	ReactiveNativeQuery<R> addAttributeResult(String columnAlias, @SuppressWarnings("rawtypes") Class entityJavaType, String attributePath);
-
-	ReactiveNativeQuery<R> addAttributeResult(String columnAlias, String entityName, String attributePath);
-
-	ReactiveNativeQuery<R> addAttributeResult(String columnAlias, @SuppressWarnings("rawtypes") SingularAttribute attribute);
-
-	NativeQuery.RootReturn addRoot(String tableAlias, String entityName);
-
-	NativeQuery.RootReturn addRoot(String tableAlias, @SuppressWarnings("rawtypes") Class entityType);
-
-	ReactiveNativeQuery<R> addEntity(String entityName);
-
-	ReactiveNativeQuery<R> addEntity(String tableAlias, String entityName);
-
-	ReactiveNativeQuery<R> addEntity(String tableAlias, String entityName, LockMode lockMode);
-
-	ReactiveNativeQuery<R> addEntity(@SuppressWarnings("rawtypes") Class entityType);
-
-	ReactiveNativeQuery<R> addEntity(String tableAlias, @SuppressWarnings("rawtypes") Class entityType);
-
-	ReactiveNativeQuery<R> addEntity(String tableAlias, @SuppressWarnings("rawtypes") Class entityClass, LockMode lockMode);
-
-	FetchReturn addFetch(String tableAlias, String ownerTableAlias, String joinPropertyName);
-
-	ReactiveNativeQuery<R> addJoin(String tableAlias, String path);
-
-	ReactiveNativeQuery<R> addJoin(String tableAlias, String ownerTableAlias, String joinPropertyName);
-
-	ReactiveNativeQuery<R> addJoin(String tableAlias, String path, LockMode lockMode);
-
-	void addResultTypeClass(Class<?> resultClass);
-
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// covariant overrides - Query
+public interface ReactiveNativeQuery<R> extends ReactiveQuery<R>, ReactiveMutationQuery<R>, SynchronizeableQuery {
 
 	@Override
-	ReactiveNativeQuery<R> setHibernateFlushMode(FlushMode flushMode);
+	ReactiveNativeQuery<R> addSynchronizedQuerySpace(String querySpace);
 
 	@Override
+	ReactiveNativeQuery<R> addSynchronizedEntityName(String entityName) throws MappingException;
+
+	@Override
+	ReactiveNativeQuery<R> addSynchronizedEntityClass(@SuppressWarnings("rawtypes") Class entityClass) throws MappingException;
+
+	@Override
+	ReactiveNativeQuery<R> setTimeout(Integer timeout);
+
+	@Override
+	ReactiveNativeQuery<R> setQueryPlanCacheable(boolean queryPlanCacheable);
+
+	@Override
+	ReactiveNativeQuery<R> setQueryFlushMode(QueryFlushMode queryFlushMode);
+
+	@Override @Deprecated(since = "7")
 	ReactiveNativeQuery<R> setFlushMode(FlushModeType flushMode);
 
 	@Override
-	ReactiveNativeQuery<R> setCacheMode(CacheMode cacheMode);
+	ReactiveSelectionQuery<R> setCacheMode(CacheMode cacheMode);
 
 	@Override
-	ReactiveNativeQuery<R> setCacheStoreMode(CacheStoreMode cacheStoreMode);
+	ReactiveSelectionQuery<R> setCacheStoreMode(CacheStoreMode cacheStoreMode);
 
 	@Override
-	ReactiveNativeQuery<R> setCacheRetrieveMode(CacheRetrieveMode cacheRetrieveMode);
+	ReactiveSelectionQuery<R> setCacheRetrieveMode(CacheRetrieveMode cacheRetrieveMode);
 
 	@Override
-	ReactiveNativeQuery<R> setCacheable(boolean cacheable);
+	ReactiveSelectionQuery<R> setCacheable(boolean cacheable);
 
 	@Override
-	ReactiveNativeQuery<R> setCacheRegion(String cacheRegion);
+	ReactiveSelectionQuery<R> setCacheRegion(String cacheRegion);
 
 	@Override
 	ReactiveNativeQuery<R> setTimeout(int timeout);
 
 	@Override
-	ReactiveNativeQuery<R> setFetchSize(int fetchSize);
+	ReactiveSelectionQuery<R> setFetchSize(int fetchSize);
 
 	@Override
-	ReactiveNativeQuery<R> setReadOnly(boolean readOnly);
-
-	/**
-	 * @inheritDoc
-	 *
-	 * This operation is supported even for native queries.
-	 * Note that specifying an explicit lock mode might
-	 * result in changes to the native SQL query that is
-	 * actually executed.
-	 */
-	@Override
-	LockOptions getLockOptions();
-
-	/**
-	 * @inheritDoc
-	 *
-	 * This operation is supported even for native queries.
-	 * Note that specifying an explicit lock mode might
-	 * result in changes to the native SQL query that is
-	 * actually executed.
-	 */
-	@Override
-	ReactiveNativeQuery<R> setLockOptions(LockOptions lockOptions);
-
-	/**
-	 * Not applicable to native SQL queries.
-	 *
-	 * @throws IllegalStateException for consistency with JPA
-	 */
-	@Override
-	ReactiveNativeQuery<R> setLockMode(String alias, LockMode lockMode);
+	ReactiveSelectionQuery<R> setReadOnly(boolean readOnly);
 
 	@Override
 	ReactiveNativeQuery<R> setComment(String comment);
@@ -157,10 +92,10 @@ public interface ReactiveNativeQuery<R> extends ReactiveQuery<R> {
 	ReactiveNativeQuery<R> addQueryHint(String hint);
 
 	@Override
-	ReactiveNativeQuery<R> setMaxResults(int maxResult);
+	ReactiveSelectionQuery<R> setMaxResults(int maxResults);
 
 	@Override
-	ReactiveNativeQuery<R> setFirstResult(int startPosition);
+	ReactiveSelectionQuery<R> setFirstResult(int startPosition);
 
 	@Override
 	ReactiveNativeQuery<R> setHint(String hintName, Object value);
@@ -173,12 +108,13 @@ public interface ReactiveNativeQuery<R> extends ReactiveQuery<R> {
 	 *
 	 * @throws IllegalStateException as required by JPA
 	 */
+	@SuppressWarnings("removal")
 	@Override
 	LockModeType getLockMode();
 
 	/**
-	 * @inheritDoc
-	 *
+	 * {@inheritDoc}
+	 * <p>
 	 * This operation is supported even for native queries.
 	 * Note that specifying an explicit lock mode might
 	 * result in changes to the native SQL query that is
@@ -198,24 +134,42 @@ public interface ReactiveNativeQuery<R> extends ReactiveQuery<R> {
 	 * @throws IllegalStateException as required by JPA
 	 */
 	@Override
-	ReactiveNativeQuery<R> setLockMode(LockModeType lockMode);
+	ReactiveSelectionQuery<R> setLockMode(LockModeType lockMode);
 
 	/**
-	 * @inheritDoc
-	 *
+	 * {@inheritDoc}
+	 * <p>
 	 * This operation is supported even for native queries.
 	 * Note that specifying an explicit lock mode might
 	 * result in changes to the native SQL query that is
 	 * actually executed.
 	 */
 	@Override
-	ReactiveNativeQuery<R> setHibernateLockMode(LockMode lockMode);
+	ReactiveSelectionQuery<R> setHibernateLockMode(LockMode lockMode);
+
+	/**
+	 * Apply a timeout to the corresponding database query.
+	 *
+	 * @param timeout The timeout to apply
+	 *
+	 * @return {@code this}, for method chaining
+	 */
+	ReactiveNativeQuery<R> setTimeout(Timeout timeout);
+
+	/**
+	 * Apply a scope to any pessimistic locking applied to the query.
+	 *
+	 * @param lockScope The lock scope to apply
+	 *
+	 * @return {@code this}, for method chaining
+	 */
+	ReactiveSelectionQuery<R> setLockScope(PessimisticLockScope lockScope);
 
 	@Override
-	<T> ReactiveNativeQuery<T> setTupleTransformer(TupleTransformer<T> transformer);
+	<X> ReactiveSelectionQuery<X> setTupleTransformer(TupleTransformer<X> transformer);
 
 	@Override
-	ReactiveNativeQuery<R> setResultListTransformer(ResultListTransformer<R> transformer);
+	ReactiveSelectionQuery<R> setResultListTransformer(ResultListTransformer<R> transformer);
 
 	@Override
 	ReactiveNativeQuery<R> setParameter(String name, Object value);
@@ -226,13 +180,13 @@ public interface ReactiveNativeQuery<R> extends ReactiveQuery<R> {
 	@Override
 	<P> ReactiveNativeQuery<R> setParameter(String name, P val, Type<P> type);
 
-	@Override
+	@Override @Deprecated(since = "7")
 	ReactiveNativeQuery<R> setParameter(String name, Instant value, TemporalType temporalType);
 
-	@Override
+	@Override @Deprecated(since = "7")
 	ReactiveNativeQuery<R> setParameter(String name, Calendar value, TemporalType temporalType);
 
-	@Override
+	@Override @Deprecated(since = "7")
 	ReactiveNativeQuery<R> setParameter(String name, Date value, TemporalType temporalType);
 
 	@Override
@@ -244,13 +198,13 @@ public interface ReactiveNativeQuery<R> extends ReactiveQuery<R> {
 	@Override
 	<P> ReactiveNativeQuery<R> setParameter(int position, P val, Type<P> type);
 
-	@Override
+	@Override @Deprecated(since = "7")
 	ReactiveNativeQuery<R> setParameter(int position, Instant value, TemporalType temporalType);
 
-	@Override
+	@Override @Deprecated(since = "7")
 	ReactiveNativeQuery<R> setParameter(int position, Calendar value, TemporalType temporalType);
 
-	@Override
+	@Override @Deprecated(since = "7")
 	ReactiveNativeQuery<R> setParameter(int position, Date value, TemporalType temporalType);
 
 	@Override
@@ -265,11 +219,23 @@ public interface ReactiveNativeQuery<R> extends ReactiveQuery<R> {
 	@Override
 	<P> ReactiveNativeQuery<R> setParameter(Parameter<P> param, P value);
 
-	@Override
+	@Override @Deprecated(since = "7")
 	ReactiveNativeQuery<R> setParameter(Parameter<Calendar> param, Calendar value, TemporalType temporalType);
 
-	@Override
+	@Override @Deprecated(since = "7")
 	ReactiveNativeQuery<R> setParameter(Parameter<Date> param, Date value, TemporalType temporalType);
+
+	@Override
+	ReactiveNativeQuery<R> setProperties(Object bean);
+
+	@Override
+	ReactiveNativeQuery<R> setProperties(@SuppressWarnings("rawtypes") Map bean);
+
+	@Override
+	<P> ReactiveNativeQuery<R> setConvertedParameter(String name, P value, Class<? extends AttributeConverter<P, ?>> converter);
+
+	@Override
+	<P> ReactiveNativeQuery<R> setConvertedParameter(int position, P value, Class<? extends AttributeConverter<P, ?>> converter);
 
 	@Override
 	ReactiveNativeQuery<R> setParameterList(String name, @SuppressWarnings("rawtypes") Collection values);
@@ -325,10 +291,56 @@ public interface ReactiveNativeQuery<R> extends ReactiveQuery<R> {
 	@Override
 	<P> ReactiveNativeQuery<R> setParameterList(QueryParameter<P> parameter, P[] values, Type<P> type);
 
-	@Override
-	ReactiveNativeQuery<R> setProperties(Object bean);
 
-	@Override
-	ReactiveNativeQuery<R> setProperties(@SuppressWarnings("rawtypes") Map bean);
+	ReactiveNativeQuery<R> addScalar(String columnAlias);
+
+	ReactiveNativeQuery<R> addScalar(String columnAlias, @SuppressWarnings("rawtypes") BasicTypeReference type);
+
+	ReactiveNativeQuery<R> addScalar(String columnAlias, @SuppressWarnings("rawtypes") BasicDomainType type);
+	ReactiveNativeQuery<R> addScalar(String columnAlias, @SuppressWarnings("rawtypes") Class javaType);
+
+	ReactiveNativeQuery<R> addScalar(int position, Class<?> type);
+
+	<C> ReactiveNativeQuery<R> addScalar(String columnAlias, Class<C> relationalJavaType, AttributeConverter<?,C> converter);
+
+	<O,T> ReactiveNativeQuery<R> addScalar(String columnAlias, Class<O> domainJavaType, Class<T> jdbcJavaType, AttributeConverter<O,T> converter);
+
+	<C> ReactiveNativeQuery<R> addScalar(String columnAlias, Class<C> relationalJavaType, Class<? extends AttributeConverter<?,C>> converter);
+
+	<O,T> ReactiveNativeQuery<R> addScalar(String columnAlias, Class<O> domainJavaType, Class<T> jdbcJavaType, Class<? extends AttributeConverter<O,T>> converter);
+
+	<J> NativeQuery.InstantiationResultNode<J> addInstantiation(Class<J> targetJavaType);
+
+	ReactiveNativeQuery<R> addAttributeResult(String columnAlias, @SuppressWarnings("rawtypes") Class entityJavaType, String attributePath);
+
+	ReactiveNativeQuery<R> addAttributeResult(String columnAlias, String entityName, String attributePath);
+
+	ReactiveNativeQuery<R> addAttributeResult(String columnAlias, @SuppressWarnings("rawtypes") SingularAttribute attribute);
+
+	NativeQuery.RootReturn addRoot(String tableAlias, String entityName);
+
+	NativeQuery.RootReturn addRoot(String tableAlias, @SuppressWarnings("rawtypes") Class entityType);
+
+	ReactiveNativeQuery<R> addEntity(String entityName);
+
+	ReactiveNativeQuery<R> addEntity(String tableAlias, String entityName);
+
+	ReactiveNativeQuery<R> addEntity(String tableAlias, String entityName, LockMode lockMode);
+
+	ReactiveNativeQuery<R> addEntity(@SuppressWarnings("rawtypes") Class entityType);
+
+	ReactiveNativeQuery<R> addEntity(String tableAlias, @SuppressWarnings("rawtypes") Class entityType);
+
+	ReactiveNativeQuery<R> addEntity(String tableAlias, @SuppressWarnings("rawtypes") Class entityClass, LockMode lockMode);
+
+	FetchReturn addFetch(String tableAlias, String ownerTableAlias, String joinPropertyName);
+
+	ReactiveNativeQuery<R> addJoin(String tableAlias, String path);
+
+	ReactiveNativeQuery<R> addJoin(String tableAlias, String ownerTableAlias, String joinPropertyName);
+
+	ReactiveNativeQuery<R> addJoin(String tableAlias, String path, LockMode lockMode);
+
+	void addResultTypeClass(Class<?> resultClass);
 
 }

@@ -4,15 +4,23 @@
  */
 package org.hibernate.reactive.query;
 
+import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.EntityGraph;
+import jakarta.persistence.PessimisticLockScope;
+import jakarta.persistence.Timeout;
 import jakarta.persistence.metamodel.Type;
 import org.hibernate.CacheMode;
-import org.hibernate.FlushMode;
 import org.hibernate.LockMode;
 import org.hibernate.LockOptions;
+import org.hibernate.Locking;
 import org.hibernate.graph.GraphSemantic;
 import org.hibernate.graph.spi.RootGraphImplementor;
-import org.hibernate.query.CommonQueryContract;
+import org.hibernate.query.Page;
+import org.hibernate.query.QueryFlushMode;
 import org.hibernate.query.QueryParameter;
+import org.hibernate.query.ResultListTransformer;
+import org.hibernate.query.SelectionQuery;
+import org.hibernate.query.TupleTransformer;
 
 import jakarta.persistence.CacheRetrieveMode;
 import jakarta.persistence.CacheStoreMode;
@@ -28,11 +36,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 /**
  * @see org.hibernate.query.SelectionQuery
  */
-public interface ReactiveSelectionQuery<R> extends CommonQueryContract {
+public interface ReactiveSelectionQuery<R> extends SelectionQuery<R>, ReactiveQuery<R> {
+
+	default List<R> getResultList() {
+		return list();
+	}
+
+	default Stream<R> getResultStream() {
+		return stream();
+	}
+
+	default Stream<R> stream() {
+		return list().stream();
+	}
+
+	/**
+	 * The type of things returned from the query.
+	 */
+	Class<R> getResultType();
 
 	String getQueryString();
 
@@ -55,16 +81,29 @@ public interface ReactiveSelectionQuery<R> extends CommonQueryContract {
 	@Override
 	ReactiveSelectionQuery<R> setHint(String hintName, Object value);
 
+	@Override
+	default ReactiveSelectionQuery<R> setEntityGraph(EntityGraph<? super R> entityGraph) {
+		return setEntityGraph( entityGraph, GraphSemantic.LOAD );
+	}
+
+	ReactiveSelectionQuery<R> setEntityGraph(EntityGraph<? super R> graph, GraphSemantic semantic);
+
 	// Covariant methods
 
 	@Override
 	ReactiveSelectionQuery<R> setFlushMode(FlushModeType flushMode);
 
 	@Override
-	ReactiveSelectionQuery<R> setHibernateFlushMode(FlushMode flushMode);
+	ReactiveSelectionQuery<R> setTimeout(int timeout);
 
 	@Override
-	ReactiveSelectionQuery<R> setTimeout(int timeout);
+	ReactiveSelectionQuery<R> setTimeout(Integer timeout);
+
+	@Override
+	ReactiveSelectionQuery<R> setTimeout(Timeout timeout);
+
+	@Override
+	ReactiveSelectionQuery<R> setComment(String comment);
 
 	Integer getFetchSize();
 
@@ -81,6 +120,8 @@ public interface ReactiveSelectionQuery<R> extends CommonQueryContract {
 	int getMaxResults();
 
 	ReactiveSelectionQuery<R> setFirstResult(int startPosition);
+
+	ReactiveSelectionQuery<R> setPage(Page page);
 
 	CacheMode getCacheMode();
 
@@ -115,13 +156,33 @@ public interface ReactiveSelectionQuery<R> extends CommonQueryContract {
 
 	ReactiveSelectionQuery<R> setHibernateLockMode(LockMode lockMode);
 
-	ReactiveSelectionQuery<R> setLockMode(String alias, LockMode lockMode);
+	@Override
+	ReactiveSelectionQuery<R> setLockScope(PessimisticLockScope lockScope);
 
-	ReactiveSelectionQuery<R> setFollowOnLocking(boolean enable);
+	@Override
+	ReactiveSelectionQuery<R> setLockTimeout(Timeout lockTimeout);
+
+	/**
+	 * Specifies whether follow-on locking should be applied
+	 */
+	ReactiveSelectionQuery<R> setFollowOnStrategy(Locking.FollowOn followOnStrategy);
+
+	/**
+	 * Set a {@link TupleTransformer}.
+	 */
+	<X> ReactiveSelectionQuery<X> setTupleTransformer(TupleTransformer<X> transformer);
+
+	/**
+	 * Set a {@link ResultListTransformer}.
+	 */
+	ReactiveSelectionQuery<R> setResultListTransformer(ResultListTransformer<R> transformer);
+
 
 	void applyGraph(RootGraphImplementor<?> graph, GraphSemantic semantic);
 
 	ReactiveSelectionQuery<R> enableFetchProfile(String profileName);
+
+	ReactiveSelectionQuery<R> disableFetchProfile(String profileName);
 
 	@Override
 	ReactiveSelectionQuery<R> setParameter(String name, Object value);
@@ -178,6 +239,19 @@ public interface ReactiveSelectionQuery<R> extends CommonQueryContract {
 	ReactiveSelectionQuery<R> setParameter(Parameter<Date> param, Date value, TemporalType temporalType);
 
 	@Override
+	ReactiveSelectionQuery<R> setProperties(Object bean);
+
+	@Override
+	ReactiveSelectionQuery<R> setProperties(@SuppressWarnings("rawtypes") Map bean);
+
+	@Override
+	<P> ReactiveSelectionQuery<R> setConvertedParameter(String name, P value, Class<? extends AttributeConverter<P, ?>> converter);
+
+	@Override
+	<P> ReactiveSelectionQuery<R> setConvertedParameter(int position, P value, Class<? extends AttributeConverter<P, ?>> converter);
+
+
+	@Override
 	ReactiveSelectionQuery<R> setParameterList(String name, Collection values);
 
 	@Override
@@ -232,8 +306,10 @@ public interface ReactiveSelectionQuery<R> extends CommonQueryContract {
 	<P> ReactiveSelectionQuery<R> setParameterList(QueryParameter<P> parameter, P[] values, Type<P> type);
 
 	@Override
-	ReactiveSelectionQuery<R> setProperties(Object bean);
+	ReactiveSelectionQuery<R> setQueryFlushMode(QueryFlushMode queryFlushMode);
 
 	@Override
-	ReactiveSelectionQuery<R> setProperties(Map bean);
+	ReactiveSelectionQuery<R> setQueryPlanCacheable(boolean queryPlanCacheable);
+
+
 }

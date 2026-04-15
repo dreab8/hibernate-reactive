@@ -4,6 +4,7 @@
  */
 package org.hibernate.reactive.query.sql.spi;
 
+import jakarta.persistence.EntityGraph;
 import java.time.Instant;
 import java.util.Calendar;
 import java.util.Collection;
@@ -12,18 +13,20 @@ import java.util.Map;
 
 import jakarta.persistence.metamodel.Type;
 import org.hibernate.CacheMode;
-import org.hibernate.FlushMode;
 import org.hibernate.LockMode;
-import org.hibernate.LockOptions;
+import org.hibernate.MappingException;
 import org.hibernate.metamodel.model.domain.BasicDomainType;
 import org.hibernate.query.QueryParameter;
 import org.hibernate.query.ResultListTransformer;
 import org.hibernate.query.TupleTransformer;
 import org.hibernate.query.named.NameableQuery;
+import org.hibernate.query.named.NamedMutationMemento;
+import org.hibernate.query.named.internal.NativeSelectionMementoImpl;
 import org.hibernate.query.results.internal.dynamic.DynamicResultBuilderEntityStandard;
 import org.hibernate.query.named.NamedNativeQueryMemento;
 import org.hibernate.reactive.query.ReactiveNativeQuery;
-import org.hibernate.reactive.query.ReactiveQueryImplementor;
+import org.hibernate.reactive.query.spi.ReactiveSelectionQueryImplementor;
+import org.hibernate.reactive.query.spi.ReativeMutationQueryImplementor;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.FlushModeType;
@@ -32,15 +35,57 @@ import jakarta.persistence.Parameter;
 import jakarta.persistence.TemporalType;
 import jakarta.persistence.metamodel.SingularAttribute;
 
-public interface ReactiveNativeQueryImplementor<R> extends ReactiveNativeQuery<R>, ReactiveQueryImplementor<R>, NameableQuery {
+public interface ReactiveNativeQueryImplementor<R> extends ReactiveSelectionQueryImplementor<R>,
+		ReativeMutationQueryImplementor<R>, ReactiveNativeQuery<R>, NameableQuery {
 
 	/**
 	 * Best guess whether this is a select query.  {@code null}
 	 * indicates unknown
 	 */
 	Boolean isSelectQuery();
+
 	@Override
 	NamedNativeQueryMemento toMemento(String name);
+
+	@Override
+	NamedMutationMemento<?> toMutationMemento(String name);
+
+	@Override
+	default ReactiveNativeQueryImplementor<R> asMutationQuery() {
+		return (ReactiveNativeQueryImplementor<R>) ReativeMutationQueryImplementor.super.asMutationQuery();
+	}
+
+	@Override
+	default ReactiveNativeQueryImplementor<R> asStatement() {
+		return (ReactiveNativeQueryImplementor<R>) ReativeMutationQueryImplementor.super.asStatement();
+	}
+
+	@Override
+	ReactiveNativeQueryImplementor<R> asSelectionQuery();
+
+	@Override
+	<X> ReactiveNativeQueryImplementor<X> asSelectionQuery(Class<X> type);
+
+	@Override
+	<X> ReactiveNativeQueryImplementor<X> asSelectionQuery(EntityGraph<X> entityGraph);
+
+	@Override
+	<X> ReactiveNativeQueryImplementor<X> ofType(Class<X> type);
+
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	// covariant overrides - NativeQuery
+
+	@Override
+	NativeSelectionMementoImpl<R> toSelectionMemento(String name);
+
+	@Override
+	ReactiveNativeQueryImplementor<R> addSynchronizedQuerySpace(String querySpace);
+
+	@Override
+	ReactiveNativeQueryImplementor<R> addSynchronizedEntityName(String entityName) throws MappingException;
+
+	@Override
+	ReactiveNativeQueryImplementor<R> addSynchronizedEntityClass(@SuppressWarnings("rawtypes") Class entityClass) throws MappingException;
 
 	@Override
 	ReactiveNativeQueryImplementor<R> addScalar(String columnAlias);
@@ -115,9 +160,6 @@ public interface ReactiveNativeQueryImplementor<R> extends ReactiveNativeQuery<R
 	ReactiveNativeQueryImplementor<R> setHint(String hintName, Object value);
 
 	@Override
-	ReactiveNativeQueryImplementor<R> setHibernateFlushMode(FlushMode flushMode);
-
-	@Override
 	ReactiveNativeQueryImplementor<R> setFlushMode(FlushModeType flushMode);
 
 	@Override
@@ -139,16 +181,10 @@ public interface ReactiveNativeQueryImplementor<R> extends ReactiveNativeQuery<R
 	ReactiveNativeQueryImplementor<R> setReadOnly(boolean readOnly);
 
 	@Override
-	ReactiveNativeQueryImplementor<R> setLockOptions(LockOptions lockOptions);
-
-	@Override
 	ReactiveNativeQueryImplementor<R> setHibernateLockMode(LockMode lockMode);
 
 	@Override
 	ReactiveNativeQueryImplementor<R> setLockMode(LockModeType lockMode);
-
-	@Override
-	ReactiveNativeQueryImplementor<R> setLockMode(String alias, LockMode lockMode);
 
 	@Override
 	ReactiveNativeQueryImplementor<R> setComment(String comment);
