@@ -14,7 +14,6 @@ import org.hibernate.LockMode;
 import org.hibernate.LockOptions;
 import org.hibernate.Locking;
 import org.hibernate.graph.GraphSemantic;
-import org.hibernate.graph.spi.RootGraphImplementor;
 import org.hibernate.query.Page;
 import org.hibernate.query.QueryFlushMode;
 import org.hibernate.query.QueryParameter;
@@ -177,8 +176,6 @@ public interface ReactiveSelectionQuery<R> extends SelectionQuery<R>, ReactiveQu
 	 */
 	ReactiveSelectionQuery<R> setResultListTransformer(ResultListTransformer<R> transformer);
 
-
-	void applyGraph(RootGraphImplementor<?> graph, GraphSemantic semantic);
 
 	ReactiveSelectionQuery<R> enableFetchProfile(String profileName);
 

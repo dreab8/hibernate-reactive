@@ -5,18 +5,21 @@
 package org.hibernate.reactive.query.sql.internal;
 
 import org.hibernate.CacheMode;
-import org.hibernate.FlushMode;
 import org.hibernate.HibernateException;
 import org.hibernate.LockMode;
 import org.hibernate.LockOptions;
+import org.hibernate.Locking;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.graph.GraphSemantic;
-import org.hibernate.graph.spi.RootGraphImplementor;
 import org.hibernate.metamodel.model.domain.BasicDomainType;
+import org.hibernate.query.IllegalSelectQueryException;
+import org.hibernate.query.Page;
+import org.hibernate.query.QueryFlushMode;
 import org.hibernate.query.QueryParameter;
 import org.hibernate.query.ResultListTransformer;
 import org.hibernate.query.TupleTransformer;
 import org.hibernate.query.internal.AbstractQuery;
+import org.hibernate.query.named.NamedNativeQueryMemento;
 import org.hibernate.query.named.NamedResultSetMappingMemento;
 import org.hibernate.query.named.internal.NativeMutationMementoImpl;
 import org.hibernate.query.named.internal.NativeSelectionMementoImpl;
@@ -37,10 +40,13 @@ import org.hibernate.type.BasicTypeReference;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.CacheRetrieveMode;
 import jakarta.persistence.CacheStoreMode;
+import jakarta.persistence.EntityGraph;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.Parameter;
+import jakarta.persistence.PessimisticLockScope;
 import jakarta.persistence.TemporalType;
+import jakarta.persistence.Timeout;
 import jakarta.persistence.metamodel.SingularAttribute;
 import jakarta.persistence.metamodel.Type;
 import java.lang.invoke.MethodHandles;
@@ -54,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import static org.hibernate.reactive.util.impl.CompletionStages.voidFuture;
 
@@ -187,7 +194,7 @@ public class ReactiveNativeQueryImpl<R> extends NativeQueryImpl<R>
 		}
 
 		final String sqlString = expandParameterLists( 1 );
-		ReactiveNonSelectQueryPlan queryPlan = new ReactiveNativeNonSelectQueryPlan( sqlString, getQuerySpaces(), getParameterOccurrences() );
+		ReactiveNonSelectQueryPlan queryPlan = new ReactiveNativeNonSelectQueryPlan( sqlString, getQuerySpaces(), getQueryParameterOccurrences() );
 		if ( cacheKey != null ) {
 			getSession().getFactory().getQueryEngine().getInterpretationCache()
 					.cacheNonSelectQueryPlan( cacheKey, queryPlan );
@@ -453,20 +460,8 @@ public class ReactiveNativeQueryImpl<R> extends NativeQueryImpl<R>
 	}
 
 	@Override
-	public ReactiveNativeQueryImpl<R> setHibernateFlushMode(FlushMode flushMode) {
-		super.setHibernateFlushMode( flushMode );
-		return this;
-	}
-
-	@Override
 	public ReactiveNativeQueryImpl<R> setFlushMode(FlushModeType flushMode) {
 		super.setFlushMode( flushMode );
-		return this;
-	}
-
-	@Override
-	public ReactiveNativeQueryImpl<R> setFollowOnLocking(boolean enable) {
-		super.setFollowOnLocking( enable );
 		return this;
 	}
 
@@ -524,12 +519,6 @@ public class ReactiveNativeQueryImpl<R> extends NativeQueryImpl<R>
 	}
 
 	@Override
-	public ReactiveNativeQueryImpl<R> setLockOptions(LockOptions lockOptions) {
-		super.setLockOptions( lockOptions );
-		return this;
-	}
-
-	@Override
 	public ReactiveNativeQueryImpl<R> setHibernateLockMode(LockMode lockMode) {
 		super.setHibernateLockMode( lockMode );
 		return this;
@@ -538,12 +527,6 @@ public class ReactiveNativeQueryImpl<R> extends NativeQueryImpl<R>
 	@Override
 	public ReactiveNativeQueryImpl<R> setLockMode(LockModeType lockMode) {
 		super.setLockMode( lockMode );
-		return this;
-	}
-
-	@Override
-	public ReactiveNativeQueryImpl<R> setLockMode(String alias, LockMode lockMode) {
-		super.setLockMode( alias, lockMode );
 		return this;
 	}
 
@@ -835,12 +818,162 @@ public class ReactiveNativeQueryImpl<R> extends NativeQueryImpl<R>
 	}
 
 	@Override
-	public void applyGraph(RootGraphImplementor<?> graph, GraphSemantic semantic) {
-		super.applyGraph( graph, semantic );
+	public ReactiveNativeQueryImpl<R> enableFetchProfile(String profileName) {
+		throw new UnsupportedOperationException( "A native SQL query cannot use fetch profiles" );
 	}
 
 	@Override
-	public ReactiveNativeQueryImpl<R> enableFetchProfile(String profileName) {
-		throw new UnsupportedOperationException( "A native SQL query cannot use fetch profiles" );
+	public ReactiveNativeQueryImpl<R> asSelectionQuery() {
+		errorIfNotSelectForSure();
+		return this;
+	}
+
+	@Override
+	public <X> ReactiveNativeQueryImpl<X> asSelectionQuery(Class<X> type) {
+		errorIfNotSelectForSure();
+		//noinspection unchecked
+		return (ReactiveNativeQueryImpl<X>) this;
+	}
+
+	@Override
+	public <X> ReactiveNativeQueryImpl<X> asSelectionQuery(EntityGraph<X> entityGraph) {
+		throw new HibernateException( "A native SQL query cannot use EntityGraphs" );
+	}
+
+	private void errorIfNotSelectForSure() {
+		if ( isNotSelectForSure() ) {
+			// we unequivocally know it IS NOT a select query
+			throw new IllegalSelectQueryException( "Not a select query", super.getQueryString() );
+		}
+	}
+
+	private boolean isNotSelectForSure() {
+		return isSelectQuery() == Boolean.FALSE;
+	}
+
+	@Override
+	public <X> ReactiveNativeQueryImpl<X> ofType(Class<X> type) {
+		return asSelectionQuery( type );
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> asMutationQuery() {
+		errorIfNotSelectForSure();
+		return this;
+	}
+
+	@Override
+	public Stream<R> getResultStream() {
+		return super.getResultStream();
+	}
+
+	@Override
+	public String getMutationString() {
+		return super.getMutationString();
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> asStatement() {
+		return asMutationQuery();
+	}
+
+	@Override
+	protected void applyMementoOptions(NamedNativeQueryMemento<?> memento) {
+		super.applyMementoOptions( memento );
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setTimeout(Timeout timeout) {
+		super.setTimeout( timeout );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setLockTimeout(Timeout lockTimeout) {
+		super.setLockTimeout( lockTimeout );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setLockScope(PessimisticLockScope lockScope) {
+		super.setLockScope( lockScope );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setFollowOnLockingStrategy(Locking.FollowOn strategy) {
+		super.setFollowOnLockingStrategy( strategy );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> disableFetchProfile(String profileName) {
+		super.disableFetchProfile( profileName );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setPage(Page page) {
+		super.setPage( page );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setFollowOnStrategy(Locking.FollowOn followOnStrategy) {
+		super.setFollowOnStrategy( followOnStrategy );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setQueryFlushMode(QueryFlushMode queryFlushMode) {
+		super.setQueryFlushMode( queryFlushMode );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setTimeout(Integer timeout) {
+		super.setTimeout( timeout );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setQueryPlanCacheable(boolean queryPlanCacheable) {
+		super.setQueryPlanCacheable( queryPlanCacheable );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setEntityGraph(EntityGraph<? super R> entityGraph) {
+		super.setEntityGraph( entityGraph );
+		return this;
+	}
+
+	@Override
+	public <P> ReactiveNativeQueryImpl<R> setConvertedParameter(
+			String name,
+			P value,
+			Class<? extends AttributeConverter<P, ?>> converterClass) {
+		super.setConvertedParameter( name, value, converterClass );
+		return this;
+	}
+
+	@Override
+	public <P> ReactiveNativeQueryImpl<R> setConvertedParameter(
+			int position,
+			P value,
+			Class<? extends AttributeConverter<P, ?>> converterClass) {
+		super.setConvertedParameter( position, value, converterClass );
+		return this;
+	}
+
+	@Override
+	public ReactiveNativeQueryImpl<R> setEntityGraph(EntityGraph<? super R> graph, GraphSemantic semantic) {
+		super.setEntityGraph( graph, semantic );
+		return this;
+	}
+
+	@Override
+	public <X> ReactiveNativeQueryImpl<X> withEntityGraph(EntityGraph<X> entityGraph) {
+		throw new HibernateException( "A native SQL query cannot use EntityGraphs" );
 	}
 }

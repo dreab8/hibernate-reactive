@@ -38,7 +38,7 @@ import jakarta.persistence.metamodel.SingularAttribute;
 /**
  * @see org.hibernate.query.NativeQuery
  */
-public interface ReactiveNativeQuery<R> extends ReactiveQuery<R>, ReactiveMutationQuery<R>, SynchronizeableQuery {
+public interface ReactiveNativeQuery<R> extends ReactiveSelectionQuery<R>, ReactiveMutationQuery<R>, SynchronizeableQuery {
 
 	@Override
 	ReactiveNativeQuery<R> addSynchronizedQuerySpace(String querySpace);
