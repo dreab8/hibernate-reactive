@@ -63,20 +63,10 @@ public interface ReactiveSqmQueryImplementor<R> extends ReactiveQueryImplementor
 	ReactiveSqmQueryImplementor<R> addQueryHint(String hint);
 
 	@Override
-	ReactiveSqmQueryImplementor<R> setLockOptions(LockOptions lockOptions);
-
-	@Override
-	ReactiveSqmQueryImplementor<R> setLockMode(String alias, LockMode lockMode);
-
-	@Override
 	<T> ReactiveSqmQueryImplementor<T> setTupleTransformer(TupleTransformer<T> transformer);
 
 	@Override
 	ReactiveSqmQueryImplementor<R> setResultListTransformer(ResultListTransformer<R> transformer);
-
-
-	@Override
-	ReactiveSqmQueryImplementor<R> setHibernateFlushMode(FlushMode flushMode);
 
 	@Override
 	ReactiveSqmQueryImplementor<R> setMaxResults(int maxResult);
